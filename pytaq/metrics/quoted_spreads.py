@@ -1,11 +1,11 @@
 from datetime import date, datetime, time
-from typing import List, Optional, Union
+from typing import List, Union
 
 import numpy as np
 import pandas as pd
 
-from ..cleaning.timestamps import filter_timestamp
 from .locks_crosses import filter_locks_crosses
+from .timestamps import filter_timestamp
 
 
 def compute_quote_inforce(

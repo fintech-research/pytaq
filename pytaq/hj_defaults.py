@@ -1,10 +1,11 @@
-""" Default parameters from Holden & Jacobsen """
+"""Default parameters from Holden & Jacobsen"""
 
 from datetime import time
+from decimal import Decimal
 
-HJ_KEEP_QU_COND = {"A", "B", "H", "O", "R", "W"}
-HJ_MAX_SPREAD = 5.0
-HJ_MAX_QUOTE_CHANGE = 2.5
+HJ_KEEP_QU_COND = ["A", "B", "H", "O", "R", "W"]
+HJ_MAX_SPREAD = Decimal("5.0")
+HJ_MAX_QUOTE_CHANGE = Decimal("2.5")
 
 HJ_DELETE_CANCELED_QUOTES = True
 HJ_DELETE_EMPTY_QUOTES = True

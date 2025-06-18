@@ -3,8 +3,8 @@ from typing import List, Optional, Union
 
 import pandas as pd
 
+from ..hj_defaults import HJ_END_TIME_TRADES, HJ_START_TIME_TRADES
 from .common import merge_datetime, merge_symbol
-from .hj_defaults import HJ_END_TIME_TRADES, HJ_START_TIME_TRADES
 from .postgresql import build_sql_query
 
 TRADES_COLS_DB = [

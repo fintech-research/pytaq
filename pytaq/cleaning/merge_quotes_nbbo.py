@@ -1,27 +1,39 @@
-import pandas as pd
+import ibis
 
 
 def merge_quotes_nbbo(
-    nbbo: pd.DataFrame, quote: pd.DataFrame, keep_changes_only: bool = True
-) -> pd.DataFrame:
-    """Merges the NBBO and Quote dataframes to create the official complete NBBO.
+    nbbo: ibis.Table, quote: ibis.Table, keep_changes_only: bool = True
+) -> ibis.Table:
+    """Merges the NBBO and Quote tables to create the official complete NBBO.
 
-    With default options used to clean the input dataframes, this function should
+    With default options used to clean the input tables, this function should
     yield the same results as the official complete NBBO table in WRDS.
 
     Args:
-        nbbo (pd.DataFrame): NBBO quotes
-        quote (pd.DataFrame): Quotes.
+        nbbo (ibis.Table): NBBO quotes
+        quote (ibis.Table): Quotes
         keep_changes_only (bool, optional): Only keep the last observation for each timestamp. Defaults to True.
 
     Returns:
-        pd.DaraFrame: Official complete NBBO
+        ibis.Table: Official complete NBBO
     """
-    df = nbbo.append(quote).sort_values(["symbol", "timestamp", "qu_seqnum"])
+    # Union the tables
+    t = nbbo.union(quote)
 
-    # Remove duplicate quotes at same microsecond (keep last one based
-    # on sequence number)
+    # Sort by symbol, timestamp, sequence number
+    t = t.order_by(["symbol", "timestamp", "qu_seqnum"])
+
+    # Remove duplicate quotes at same microsecond (keep last one based on sequence number)
     if keep_changes_only:
-        df = df.groupby(["symbol", "timestamp"]).last().reset_index()
+        t = (
+            t.group_by(["symbol", "timestamp"])
+            .mutate(
+                row_num=ibis.row_number().over(
+                    order_by=[ibis.desc("qu_seqnum")], group_by=["symbol", "timestamp"]
+                )
+            )
+            .filter(lambda x: x.row_num == 1)
+            .drop("row_num")
+        )
 
-    return df
+    return t

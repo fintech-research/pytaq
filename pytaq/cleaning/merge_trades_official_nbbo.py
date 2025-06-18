@@ -1,27 +1,28 @@
-import pandas as pd
+import ibis
 
 
 def merge_trades_official_nbbo(
-    trades: pd.DataFrame,
-    off_nbbo: pd.DataFrame,
-) -> pd.DataFrame:
+    trades: ibis.Table,
+    off_nbbo: ibis.Table,
+) -> ibis.Table:
     """Merges the trades with the corresponding official NBBO at the time.
 
     Args:
-        trades (pd.DataFrame): Trades
-        off_nbbo (pd.DataFrame): Official NBBO
+        trades (ibis.Table): Trades
+        off_nbbo (ibis.Table): Official NBBO
 
     Returns:
-        pd.DataFrame: Trades with the corresponding NBBO
+        ibis.Table: Trades with the corresponding NBBO
     """
-    trades = trades.sort_values(["timestamp", "symbol"])
-    off_nbbo = off_nbbo.sort_values(["timestamp", "symbol"])
+    # Sort both tables
+    trades = trades.order_by(["timestamp", "symbol"])
+    off_nbbo = off_nbbo.order_by(["timestamp", "symbol"])
 
-    return pd.merge_asof(
-        trades,
+    # Perform asof join
+    return trades.asof_join(
         off_nbbo,
-        on="timestamp",
-        by="symbol",
-        allow_exact_matches=False,
+        predicates=[trades.symbol == off_nbbo.symbol],
+        by="timestamp",
+        tolerance=None,
         suffixes=("", "_quote"),
     )
