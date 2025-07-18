@@ -33,8 +33,8 @@ NBBO_COLS_FLAGS = [
 
 
 def filter_empty_quotes(t: ibis.Table) -> ibis.Table:
-    # TODO: double-check, it seems this steps is actually wrong, you
-    # should keep empty quotes. (This step is from H&J).
+    # NOTE: This filtering step follows H&J methodology but may need review.
+    # Consider whether empty quotes should be preserved for complete market picture.
     # Delete if both ask and bid (or their size) are 0 or None
     empty_sel = (
         ((t.best_ask <= 0) & (t.best_bid <= 0))
@@ -186,6 +186,7 @@ def clean_nbbo(
     max_quote_change: Decimal = HJ_MAX_QUOTE_CHANGE,
     output_flags: bool = False,
 ) -> ibis.Table:
+    t = t.rename({col.lower(): col for col in t.columns})
     t = merge_datetime(merge_symbol(t))
     t = filter_by_time(t, start_time, end_time)
 

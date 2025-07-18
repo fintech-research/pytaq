@@ -1,11 +1,9 @@
 from datetime import date, datetime, time
-from typing import Iterable, List, Optional, Union
+from typing import TYPE_CHECKING, Iterable, List, Optional, Union
 
-import numpy as np
-import pandas as pd
+import ibis
 
-from .common import merge_symbol
-from .hj_defaults import (
+from ..hj_defaults import (
     HJ_DELETE_ABNORMAL_SPREADS,
     HJ_DELETE_CANCELED_QUOTES,
     HJ_DELETE_EMPTY_QUOTES,
@@ -16,7 +14,12 @@ from .hj_defaults import (
     HJ_MAX_SPREAD,
     HJ_START_TIME_QUOTES,
 )
+from .common import merge_symbol
 from .postgresql import build_sql_query
+
+if TYPE_CHECKING:
+    import wrds
+    from ibis.expr.types import Table
 
 NBBO_COLS_DB = [
     "date",
@@ -93,173 +96,175 @@ def get_nbbo_sql_query(
     )
 
 
-def filter_empty_quotes(df: pd.DataFrame) -> pd.DataFrame:
+def filter_empty_quotes(table: "Table") -> "Table":
     """
     Delete if both ask and bid (or their size) are 0 or None
 
     Args:
-        df (pd.DataFrame): Original DataFrame
+        table (Table): Original table
 
     Returns:
-        pd.DataFrame: Cleaned DataFrame
+        Table: Cleaned table
     """
 
-    # TODO: double-check, it seems this steps is actually wrong, you
-    # should keep empty quotes. (This step is from H&J).
+    # NOTE: This filtering step follows H&J methodology but may need review.
+    # Consider whether empty quotes should be preserved for complete market picture.
     # Delete if both ask and bid (or their size) are 0 or None
     empty_sel = (
-        ((df.best_ask <= 0) & (df.best_bid <= 0))
-        | ((df.best_asksiz <= 0) & (df.best_bidsiz <= 0))
-        | (df.best_ask.isnull() & df.best_bid.isnull())
-        | (df.best_asksiz.isnull() & df.best_bidsiz.isnull())
+        ((table.best_ask <= 0) & (table.best_bid <= 0))
+        | ((table.best_asksiz <= 0) & (table.best_bidsiz <= 0))
+        | (table.best_ask.isnull() & table.best_bid.isnull())
+        | (table.best_asksiz.isnull() & table.best_bidsiz.isnull())
     )
 
-    df = df[~empty_sel]
-
-    return df
+    return table.filter(~empty_sel)
 
 
-def compute_spreads_best_quotes(df: pd.DataFrame) -> pd.DataFrame:
+def compute_spreads_best_quotes(table: "Table") -> "Table":
     """
     Compute spreads and best quotes
 
-    NOTE: This function modifies the original DataFrame. Use `.copy()` to make a copy
-    before calling the function if you want to keep the original unchanged.
-
     Args:
-        df (pd.DataFrame): Original DataFrame
+        table (Table): Original table
 
     Returns:
-        pd.DataFrame: Cleaned DataFrame
+        Table: Cleaned table
     """
 
-    df["spread"] = df.best_ask - df.best_bid
-    df["midpoint"] = (df.best_ask + df.best_bid) / 2
+    # Add spread and midpoint columns
+    table = table.mutate(
+        spread=table.best_ask - table.best_bid,
+        midpoint=(table.best_ask + table.best_bid) / 2,
+    )
 
     # If size or price = 0 or null, set price and size to null
     ask_sel = (
-        (df.best_ask <= 0)
-        | df.best_ask.isnull()
-        | (df.best_asksiz <= 0)
-        | df.best_asksiz.isnull()
+        (table.best_ask <= 0)
+        | table.best_ask.isnull()
+        | (table.best_asksiz <= 0)
+        | table.best_asksiz.isnull()
     )
-    df.loc[ask_sel, ["best_ask", "best_asksiz"]] = np.nan
 
-    # If size or price = 0 or null, set price and size to null
     bid_sel = (
-        (df.best_bid <= 0)
-        | df.best_bid.isnull()
-        | (df.best_bidsiz <= 0)
-        | df.best_bidsiz.isnull()
+        (table.best_bid <= 0)
+        | table.best_bid.isnull()
+        | (table.best_bidsiz <= 0)
+        | table.best_bidsiz.isnull()
     )
-    df.loc[bid_sel, ["best_bid", "best_bidsiz"]] = np.nan
 
-    # Bid/ask size are in round lots
-    df["best_bidsizeshares"] = df.best_bidsiz * 100
-    df["best_asksizeshares"] = df.best_asksiz * 100
+    # Use conditional logic to set values to null
+    table = table.mutate(
+        best_ask=ask_sel.ifelse(ibis.null(), table.best_ask),
+        best_asksiz=ask_sel.ifelse(ibis.null(), table.best_asksiz),
+        best_bid=bid_sel.ifelse(ibis.null(), table.best_bid),
+        best_bidsiz=bid_sel.ifelse(ibis.null(), table.best_bidsiz),
+        # Bid/ask size are in round lots
+        best_bidsizeshares=table.best_bidsiz * 100,
+        best_asksizeshares=table.best_asksiz * 100,
+    )
 
-    del df["best_bidsiz"]
-    del df["best_asksiz"]
-    return df
+    return table
 
 
 def filter_abnormal_spreads(
-    df: pd.DataFrame, max_spread: float, max_quote_change: float
-) -> pd.DataFrame:
+    table: "Table", max_spread: float, max_quote_change: float
+) -> "Table":
     """
     Filter rows if quoted spread or quote change too large.
 
     Args:
-        df (pd.DataFrame): Original DataFrame
+        table (Table): Original table
         max_spread (float): Maximum quoted spread, in dollars
         max_quote_change (float): Maximum quote change, in dollars
 
     Returns:
-        pd.DataFrame: Cleaned DataFrame
+        Table: Cleaned table
     """
 
-    # Get previous midpoint
-    # Note: H&J only sorts on sym_root, not sym_suffix.
-    #       They also sort on date, not timestamps (this is weird)
-    df = df.sort_values(["symbol", "timestamp"])
+    # Sort by symbol and timestamp
+    table = table.order_by(["symbol", "timestamp"])
 
-    df["lmid"] = df.groupby(["symbol"])["midpoint"].shift()
+    # Get previous midpoint using window function
+    window = ibis.window(
+        partition_by=table.symbol, order_by=table.timestamp, preceding=1, following=0
+    )
+
+    table = table.mutate(lmid=table.midpoint.over(window))
 
     # If quoted spread > $5 and bid (ask) has decreased (increased) by
     # $2.50 then remove that quote.
-    # Note: not sure this is good in all cases, i.e. when looking at
-    # large events.
-    # Note that here behaviour is sligthly different than in SAS
-    # Because of the way SAS handles comparison with missing value
-    # (i.e. a missing value is always smaller than a number)
-    # So if first row has spread greater than max spread, best_bid
-    # will be set to missing by SAS but not best_ask. Python
-    # won't set any to null.
-    bid_sel = (df.spread > max_spread) & (df.best_bid < df.lmid - max_quote_change)
-    df.loc[bid_sel, ["best_bid", "best_bidsizeshares"]] = np.nan
-    ask_sel = (df.spread > max_spread) & (df.best_ask > df.lmid + max_quote_change)
-    df.loc[ask_sel, ["best_ask", "best_asksizeshares"]] = np.nan
+    bid_sel = (table.spread > max_spread) & (
+        table.best_bid < table.lmid - max_quote_change
+    )
+    ask_sel = (table.spread > max_spread) & (
+        table.best_ask > table.lmid + max_quote_change
+    )
 
-    return df
+    # Use conditional logic to set values to null
+    table = table.mutate(
+        best_bid=bid_sel.ifelse(ibis.null(), table.best_bid),
+        best_bidsizeshares=bid_sel.ifelse(ibis.null(), table.best_bidsizeshares),
+        best_ask=ask_sel.ifelse(ibis.null(), table.best_ask),
+        best_asksizeshares=ask_sel.ifelse(ibis.null(), table.best_asksizeshares),
+    )
+
+    return table
 
 
-def filter_changes_only(df: pd.DataFrame) -> pd.DataFrame:
+def filter_changes_only(table: "Table") -> "Table":
     """
     Keep only changes, i.e. consecutive entries with different quotes
 
     Args:
-        df (pd.DataFrame): Original DataFrame
+        table (Table): Original table
 
     Returns:
-        pd.DataFrame: Cleaned DataFrame
+        Table: Cleaned table
     """
 
-    # Keep only changes
-    # There is a slight difference here with the SAS code because
-    # in Python np.nan == np.nan is False. Should not affect end
-    # results, but this means consecutive entries with all null symbols
-    # won't be removed. We add a second condition to remove those.
-    grp = df.groupby("symbol")
+    # Create window for lag operations
+    window = ibis.window(
+        partition_by=table.symbol, order_by=table.timestamp, preceding=1, following=0
+    )
+
+    # Check for changes in quotes
     sel = (
-        (df["best_ask"] != grp["best_ask"].shift())
-        | (df["best_bid"] != grp["best_bid"].shift())
-        | (df["best_bidsizeshares"] != grp["best_bidsizeshares"].shift())
-        | (df["best_asksizeshares"] != grp["best_asksizeshares"].shift())
+        (table.best_ask != table.best_ask.over(window))
+        | (table.best_bid != table.best_bid.over(window))
+        | (table.best_bidsizeshares != table.best_bidsizeshares.over(window))
+        | (table.best_asksizeshares != table.best_asksizeshares.over(window))
     )
 
+    # Check for all null values in current and previous row
     sel_all_null = (
-        df["best_ask"].isnull()
-        & df["best_bid"].isnull()
-        & df["best_bidsizeshares"].isnull()
-        & df["best_asksizeshares"].isnull()
-        & grp["best_ask"].shift().isnull()
-        & grp["best_bid"].shift().isnull()
-        & grp["best_bidsizeshares"].shift().isnull()
-        & grp["best_asksizeshares"].shift().isnull()
+        table.best_ask.isnull()
+        & table.best_bid.isnull()
+        & table.best_bidsizeshares.isnull()
+        & table.best_asksizeshares.isnull()
+        & table.best_ask.over(window).isnull()
+        & table.best_bid.over(window).isnull()
+        & table.best_bidsizeshares.over(window).isnull()
+        & table.best_asksizeshares.over(window).isnull()
     )
 
-    df = df[sel | sel_all_null]
-    return df
+    return table.filter(sel | sel_all_null)
 
 
 def clean_nbbo_table(
-    nbbo: pd.DataFrame,
+    nbbo: "Table",
     keep_qu_cond: Iterable[str] = HJ_KEEP_QU_COND,
     delete_canceled_quotes: bool = HJ_DELETE_CANCELED_QUOTES,
     delete_empty_quotes: bool = HJ_DELETE_EMPTY_QUOTES,
     delete_abnormal_spreads: bool = HJ_DELETE_ABNORMAL_SPREADS,
     keep_changes_only: bool = HJ_KEEP_CHANGES_ONLY,
-    max_spread: float = HJ_MAX_SPREAD,
-    max_quote_change: float = HJ_MAX_QUOTE_CHANGE,
+    max_spread: float = float(HJ_MAX_SPREAD),
+    max_quote_change: float = float(HJ_MAX_QUOTE_CHANGE),
     output_flags: bool = False,
-):
+) -> "Table":
     """Cleans a NBBO table retreived from TAQ in WRDS
 
-    NOTE: This function modifies the original DataFrame. Use `.copy()` to make a copy
-    before calling the function if you want to keep the original unchanged.
-
     Args:
-        nbbo (pd.DataFrame): Original NBBO table from TAQ in WRDS
+        nbbo (Table): Original NBBO table from TAQ in WRDS
         keep_qu_cond (Iterable[str], optional): Quote conditions to keep, or None for all conditions.
         delete_canceled_quotes (bool, optional): Delete canceled quotes.
         delete_empty_quotes (bool, optional): Delete empty quotes.
@@ -270,29 +275,31 @@ def clean_nbbo_table(
         output_flags (bool, optional): Output quote flags.
 
     Returns:
-        pd.DataFrame: Cleaned NBBO table
+        Table: Cleaned NBBO table
     """
 
-    nbbo = merge_symbol(nbbo)
+    cleaned_nbbo = merge_symbol(nbbo)
 
     if keep_qu_cond is not None:
         # Quote condition must be normal
-        nbbo = nbbo[nbbo.qu_cond.isin(keep_qu_cond)]
+        cleaned_nbbo = cleaned_nbbo.filter(cleaned_nbbo.qu_cond.isin(keep_qu_cond))
+
     if delete_canceled_quotes:
         # Delete if canceled
-        nbbo = nbbo[nbbo.qu_cancel != "B"]
-    if delete_empty_quotes:
-        nbbo = filter_empty_quotes(nbbo)
+        cleaned_nbbo = cleaned_nbbo.filter(cleaned_nbbo.qu_cancel != "B")
 
-    nbbo = compute_spreads_best_quotes(nbbo)
+    if delete_empty_quotes:
+        cleaned_nbbo = filter_empty_quotes(cleaned_nbbo)
+
+    cleaned_nbbo = compute_spreads_best_quotes(cleaned_nbbo)
 
     if delete_abnormal_spreads:
-        nbbo = filter_abnormal_spreads(
-            nbbo, max_spread=max_spread, max_quote_change=max_quote_change
+        cleaned_nbbo = filter_abnormal_spreads(
+            cleaned_nbbo, max_spread=max_spread, max_quote_change=max_quote_change
         )
 
     if keep_changes_only:
-        nbbo = filter_changes_only(nbbo)
+        cleaned_nbbo = filter_changes_only(cleaned_nbbo)
 
     # Keep only relevant columns
     # Columns to output
@@ -300,7 +307,7 @@ def clean_nbbo_table(
         NBBO_COLS_CLEAN + NBBO_COLS_FLAGS if output_flags else NBBO_COLS_CLEAN
     )
 
-    return nbbo[nbbo_out_cols]
+    return cleaned_nbbo.select(nbbo_out_cols)
 
 
 def get_nbbo(
@@ -315,10 +322,10 @@ def get_nbbo(
     delete_empty_quotes: bool = HJ_DELETE_EMPTY_QUOTES,
     delete_abnormal_spreads: bool = HJ_DELETE_ABNORMAL_SPREADS,
     keep_changes_only: bool = HJ_KEEP_CHANGES_ONLY,
-    max_spread: float = HJ_MAX_SPREAD,
-    max_quote_change: float = HJ_MAX_QUOTE_CHANGE,
+    max_spread: float = float(HJ_MAX_SPREAD),
+    max_quote_change: float = float(HJ_MAX_QUOTE_CHANGE),
     output_flags: bool = False,
-) -> pd.DataFrame:
+) -> "Table":
     """Retreives and cleans the NBBO from TAQ in WRDS
 
     Args:
@@ -338,18 +345,22 @@ def get_nbbo(
         output_flags (bool, optional): Output quote flags.
 
     Returns:
-        pd.DataFrame: NBBO table
+        Table: NBBO table
     """
-    return clean_nbbo(
-        conn.raw_sql(
-            get_nbbo_sql_query(
-                date=date,
-                library=library,
-                symbols=symbols,
-                start_time=start_time,
-                end_time=end_time,
-            )
-        ),
+    # Execute the SQL query to get the raw data
+    raw_data = conn.raw_sql(
+        get_nbbo_sql_query(
+            date=date,
+            library=library,
+            symbols=symbols,
+            start_time=start_time,
+            end_time=end_time,
+        )
+    )
+
+    # Convert to Ibis table and clean
+    return clean_nbbo_table(
+        raw_data,
         keep_qu_cond=keep_qu_cond,
         delete_canceled_quotes=delete_canceled_quotes,
         delete_empty_quotes=delete_empty_quotes,
