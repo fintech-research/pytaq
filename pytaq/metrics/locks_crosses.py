@@ -1,59 +1,59 @@
-import pandas as pd
-import numpy as np
+from typing import TYPE_CHECKING
 
 from ..utils.float_approx import float_equal
 
+if TYPE_CHECKING:
+    from ibis.expr.types import Column, Table
 
-def locked_rows(asks: pd.Series, bids: pd.Series) -> pd.Series:
+
+def locked_rows(asks: "Column", bids: "Column") -> "Column":
     """Identifies rows with a market lock (equal bid and ask)
 
     Args:
-        asks (pd.Series): Ask quotes
-        bids (pd.Series): Bid quotes
+        asks (Column): Ask quotes
+        bids (Column): Bid quotes
 
     Returns:
-        pd.Series: Series of boolean indicating the lock status
+        Column: Column of boolean indicating the lock status
     """
     return float_equal(s1=asks, s2=bids)
 
 
-def crossed_rows(asks: pd.Series, bids: pd.Series) -> pd.Series:
+def crossed_rows(asks: "Column", bids: "Column") -> "Column":
     """Identifies rows with a market cross (ask lower than bid)
 
     Args:
-        asks (pd.Series): Ask quotes
-        bids (pd.Series): Bid quotes
+        asks (Column): Ask quotes
+        bids (Column): Bid quotes
 
     Returns:
-        pd.Series: Series of boolean indicating the cross status
+        Column: Column of boolean indicating the cross status
     """
     return asks < bids
 
 
-def locked_crossed_rows(asks: pd.Series, bids: pd.Series) -> pd.Series:
+def locked_crossed_rows(asks: "Column", bids: "Column") -> "Column":
     """Identifies rows with a market lock or cross (ask lower or equal to bid)
 
     Args:
-        asks (pd.Series): Ask quotes
-        bids (pd.Series): Bid quotes
+        asks (Column): Ask quotes
+        bids (Column): Bid quotes
 
     Returns:
-        pd.Series: Series of boolean indicating the lock/cross status
+        Column: Column of boolean indicating the lock/cross status
     """
     return locked_rows(asks, bids) | crossed_rows(asks, bids)
 
 
-def filter_locks_crosses(
-    df: pd.DataFrame, asks: pd.Series, bids: pd.Series
-) -> pd.DataFrame:
-    """Filters locked and crossed rows from a DataFrame
+def filter_locks_crosses(table: "Table", asks: "Column", bids: "Column") -> "Table":
+    """Filters locked and crossed rows from a table
 
     Args:
-        df (pd.DataFrame): DataFrame to filter
-        asks (pd.Series): Ask quotes
-        bids (pd.Series): Bid quotes
+        table (Table): Table to filter
+        asks (Column): Ask quotes
+        bids (Column): Bid quotes
 
     Returns:
-        pd.DataFrame: Filtered DataFrame
+        Table: Filtered table
     """
-    return df[~locked_rows(asks, bids)]
+    return table.filter(~locked_rows(asks, bids))

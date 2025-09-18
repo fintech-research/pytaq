@@ -4,13 +4,18 @@ import ibis
 
 
 def merge_datetime(t: ibis.Table) -> ibis.Table:
-    year = t.date.year()
-    month = t.date.month()
-    day = t.date.day()
-    ts = ibis.timestamp(year, month, day, 0, 0, 0) + t.time_m.sub(
-        datetime.time(0, 0, 0)
-    )
-    return t.mutate(timestamp=ts)
+    # Cast date to timestamp (midnight)
+    base_ts = t.date.cast("timestamp")
+
+    # Break time_m into integer seconds and fractional microseconds
+    int_seconds = t.time_m.floor().cast("int64")
+    microseconds = ((t.time_m - t.time_m.floor()) * 1_000_000).round().cast("int64")
+
+    # Add separately
+    ts_with_seconds = base_ts + int_seconds.cast("interval('s')")
+    ts_with_microseconds = ts_with_seconds + microseconds.cast("interval('us')")
+
+    return t.mutate(timestamp=ts_with_microseconds)
 
 
 def merge_symbol(t: ibis.Table) -> ibis.Table:

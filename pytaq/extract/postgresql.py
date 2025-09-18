@@ -1,5 +1,5 @@
-from typing import List, Optional, Union
 from datetime import datetime, time
+from typing import List, Optional, Union
 
 from ..utils.time_to_sql import time_to_sql
 

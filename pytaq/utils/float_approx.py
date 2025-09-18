@@ -1,5 +1,9 @@
-import pandas as pd
-import numpy as np
+from typing import TYPE_CHECKING
+
+import ibis
+
+if TYPE_CHECKING:
+    from ibis.expr.types import Column
 
 """
     Notes:
@@ -7,63 +11,55 @@ import numpy as np
     comparison and arithmetic operations don't work as expected because of floating
     point approximation error.
 
-    Numpy' `numpy.isclose()` can be used to deal with these situations.
+    Ibis' `isclose()` function can be used to deal with these situations.
 """
 
 DEFAULT_ATOL = 0.000001
 
 
-def float_equal(s1: pd.Series, s2: pd.Series, atol: float = DEFAULT_ATOL) -> pd.Series:
-    """Compares two series for approximate equality.
+def float_equal(s1: "Column", s2: "Column", atol: float = DEFAULT_ATOL) -> "Column":
+    """Compares two columns for approximate equality.
 
     Args:
-        s1 (pd.Series): First series to compare
-        s2 (pd.Series): Second series to compare
+        s1 (Column): First column to compare
+        s2 (Column): Second column to compare
         atol (float, optional): Absolute tolerance for comparison. Defaults to 0.000001.
 
     Returns:
-        pd.Series: Series of boolean indicating approximate equality
+        Column: Column of boolean indicating approximate equality
     """
-    if s1.index != s2.index:
-        raise ValueError("s1 and s2 need the same index")
-
-    series = pd.Series(np.isclose(s1, s2, atol=atol, rtol=0.0, equal_nan=True))
-    series.index = s1.index
-    return series
+    return ibis.func.isclose(s1, s2, atol=atol, rtol=0.0, equal_nan=True)
 
 
-def float_zero(s: pd.Series, atol: float = DEFAULT_ATOL) -> pd.Series:
-    """Compares a series for approximate equality with zero.
+def float_zero(s: "Column", atol: float = DEFAULT_ATOL) -> "Column":
+    """Compares a column for approximate equality with zero.
 
     Args:
-        s (pd.Series): Series to compare with zero.
+        s (Column): Column to compare with zero.
         atol (float, optional): Absolute tolerance for comparison. Defaults to 0.000001.
 
     Returns:
-        pd.Series: Series of boolean indicating approximate equality with zero
+        Column: Column of boolean indicating approximate equality with zero
     """
-    return float_equal(s, pd.Series(0.0, index=s.index), atol=atol)
+    return float_equal(s, ibis.literal(0.0), atol=atol)
 
 
 def correct_float_approx(
-    series: pd.Series, s1: pd.Series, s2: pd.Series, atol: float = DEFAULT_ATOL
-) -> pd.Series:
-    """Changes values of a Series to NA when the corresponding entries in the two other
-    series are numerically very close.
+    series: "Column", s1: "Column", s2: "Column", atol: float = DEFAULT_ATOL
+) -> "Column":
+    """Changes values of a column to null when the corresponding entries in the two other
+    columns are numerically very close.
 
     Args:
-        series (pd.Series): Series to correct
-        s1 (pd.Series): First series to compare
-        s2 (pd.Series): Second series to compare
+        series (Column): Column to correct
+        s1 (Column): First column to compare
+        s2 (Column): Second column to compare
         atol (float, optional): Absolute tolerance for comparison. Defaults to 0.000001.
 
     Returns:
-        pd.Series: Corrected Series
+        Column: Corrected column
     """
-    equal = float_equal(s1=s1, s2=s1, atol=atol)
+    equal = float_equal(s1=s1, s2=s2, atol=atol)
 
-    if equal.index != series.index:
-        raise ValueError("series, s1, and s2 need the same index")
-
-    series[equal] = pd.NA
-    return series
+    # Set values to null when s1 and s2 are approximately equal
+    return equal.ifelse(ibis.null(), series)

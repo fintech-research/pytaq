@@ -1,11 +1,13 @@
 from datetime import date, datetime, time
-from typing import List, Optional, Union
-
-import pandas as pd
+from typing import TYPE_CHECKING, List, Optional, Union
 
 from ..hj_defaults import HJ_END_TIME_TRADES, HJ_START_TIME_TRADES
 from .common import merge_datetime, merge_symbol
 from .postgresql import build_sql_query
+
+if TYPE_CHECKING:
+    import wrds
+    from ibis.expr.types import Table
 
 TRADES_COLS_DB = [
     "date",
@@ -73,24 +75,21 @@ def get_trades_sql_query(
     )
 
 
-def clean_trade_table(trades: pd.DataFrame) -> pd.DataFrame:
+def clean_trade_table(trades: "Table") -> "Table":
     """Cleans a trade table retreived from TAQ in WRDS
 
-    NOTE: This function modifies the original DataFrame. Use `.copy()` to make a copy
-    before calling the function if you want to keep the original unchanged.
-
     Args:
-        trades (pd.DataFrame): Original trades table from TAQ in WRDS
+        trades (Table): Original trades table from TAQ in WRDS
 
     Returns:
-        pd.DataFrame: Cleaned trades table
+        Table: Cleaned trades table
     """
-    trades = merge_symbol(merge_datetime(trades))
+    cleaned_trades = merge_symbol(merge_datetime(trades))
 
     # Compute dollar value
-    trades["dollar"] = trades["price"] * trades["size"]
+    cleaned_trades = cleaned_trades.mutate(dollar=trades.price * trades.size)
 
-    return trades[TRADES_COLS_CLEAN]
+    return cleaned_trades.select(TRADES_COLS_CLEAN)
 
 
 def get_trades(
@@ -100,7 +99,7 @@ def get_trades(
     symbols: Optional[List[str]] = None,
     start_time: Optional[Union[datetime, time]] = HJ_START_TIME_TRADES,
     end_time: Optional[Union[datetime, time]] = HJ_END_TIME_TRADES,
-) -> pd.DataFrame:
+) -> "Table":
     """Retreives and cleans trades from TAQ in WRDS
 
     Args:
@@ -112,16 +111,18 @@ def get_trades(
         end_time (Optional[Union[datetime, time]], optional): End time for trades.
 
     Returns:
-        pd.DataFrame: Trades table
+        Table: Trades table
     """
-    return clean_trade_table(
-        conn.raw_sql(
-            get_trades_sql_query(
-                date=date,
-                library=library,
-                symbols=symbols,
-                start_time=start_time,
-                end_time=end_time,
-            )
+    # Execute the SQL query to get the raw data
+    raw_data = conn.raw_sql(
+        get_trades_sql_query(
+            date=date,
+            library=library,
+            symbols=symbols,
+            start_time=start_time,
+            end_time=end_time,
         )
     )
+
+    # Convert to Ibis table and clean
+    return clean_trade_table(raw_data)

@@ -20,6 +20,7 @@ def clean_official_complete_nbbo(
     start_time: datetime.time | None = HJ_START_TIME_QUOTES,
     end_time: datetime.time | None = HJ_END_TIME_QUOTES,
 ) -> ibis.Table:
+    t = t.rename({col.lower(): col for col in t.columns})
     t = merge_datetime(merge_symbol(t))
     t = filter_by_time(t, start_time, end_time)
     return t[OFF_NBBO_COLS_CLEAN]

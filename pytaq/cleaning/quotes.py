@@ -133,6 +133,7 @@ def clean_quote_table(
         ibis.Table: Cleaned quote table
 
     """
+    t = t.rename({col.lower(): col for col in t.columns})
     t = merge_symbol(merge_datetime(t))
 
     t = filter_quote_table(

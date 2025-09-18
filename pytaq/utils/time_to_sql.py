@@ -1,5 +1,5 @@
-from typing import Union
 from datetime import datetime, time
+from typing import Union
 
 
 def time_to_sql(ts: Union[datetime, time], quote_char: str = '"') -> str:

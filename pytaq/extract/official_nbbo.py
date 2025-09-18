@@ -1,11 +1,13 @@
 from datetime import date, datetime, time
-from typing import List, Optional, Union
+from typing import TYPE_CHECKING, List, Optional, Union
 
-import pandas as pd
-
+from ..hj_defaults import HJ_END_TIME_QUOTES, HJ_START_TIME_QUOTES
 from .common import merge_symbol
-from .hj_defaults import HJ_END_TIME_QUOTES, HJ_START_TIME_QUOTES
 from .postgresql import build_sql_query
+
+if TYPE_CHECKING:
+    import wrds
+    from ibis.expr.types import Table
 
 OFF_NBBO_COLS_DB = [
     "date",
@@ -69,21 +71,18 @@ def get_official_complete_nbbo_sql_query(
     )
 
 
-def clean_official_complete_nbbo_table(nbbo: pd.DataFrame) -> pd.DataFrame:
+def clean_official_complete_nbbo_table(nbbo: "Table") -> "Table":
     """Cleans the official complete NBBO table
 
-    NOTE: This function modifies the original DataFrame. Use `.copy()` to make a copy
-    before calling the function if you want to keep the original unchanged.
-
     Args:
-        nbbo (pd.DataFrame): Original DataFrame
+        nbbo (Table): Original table
 
     Returns:
-        pd.DataFrame: Cleaned DataFrame
+        Table: Cleaned table
     """
-    nbbo = merge_symbol(nbbo)
-    nbbo = nbbo.sort_values(["symbol", "timestamp"])
-    return nbbo[OFF_NBBO_COLS_CLEAN]
+    cleaned_nbbo = merge_symbol(nbbo)
+    cleaned_nbbo = cleaned_nbbo.order_by(["symbol", "timestamp"])
+    return cleaned_nbbo.select(OFF_NBBO_COLS_CLEAN)
 
 
 def get_official_complete_nbbo(
@@ -93,7 +92,7 @@ def get_official_complete_nbbo(
     symbols: Optional[List[str]] = None,
     start_time: Optional[Union[datetime, time]] = HJ_START_TIME_QUOTES,
     end_time: Optional[Union[datetime, time]] = HJ_END_TIME_QUOTES,
-) -> pd.DataFrame:
+) -> "Table":
     """Retreives and cleans the official complete NBBO table from TAQ in WRDS
 
     Args:
@@ -105,16 +104,18 @@ def get_official_complete_nbbo(
         end_time (Optional[Union[datetime, time]], optional): End time for quotes.
 
     Returns:
-        pd.DataFrame: Official complete NBBO table
+        Table: Official complete NBBO table
     """
-    return clean_official_complete_nbbo_table(
-        conn.raw_sql(
-            get_official_complete_nbbo_sql_query(
-                date=date,
-                library=library,
-                symbols=symbols,
-                start_time=start_time,
-                end_time=end_time,
-            )
+    # Execute the SQL query to get the raw data
+    raw_data = conn.raw_sql(
+        get_official_complete_nbbo_sql_query(
+            date=date,
+            library=library,
+            symbols=symbols,
+            start_time=start_time,
+            end_time=end_time,
         )
     )
+
+    # Convert to Ibis table and clean
+    return clean_official_complete_nbbo_table(raw_data)

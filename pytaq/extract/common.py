@@ -1,35 +1,36 @@
-from datetime import datetime
+from typing import TYPE_CHECKING
 
-import pandas as pd
+import ibis
+
+if TYPE_CHECKING:
+    from ibis.expr.types import Table
 
 
-def merge_datetime(df: pd.DataFrame) -> pd.DataFrame:
-    """Merges date and time columns.
+def merge_datetime(table: "Table") -> "Table":
+    """Merges date and time columns into a timestamp column.
 
     Args:
-        df (pd.DataFrame): Original DataFrame
+        table (Table): Original Ibis table with 'date' and 'time_m' columns
 
     Returns:
-        pd.DataFrame: Cleaned DataFrame
+        Table: Table with merged timestamp column
     """
-    # Merge date and time
-    df["timestamp"] = df[["date", "time_m"]].apply(
-        lambda x: datetime.combine(x["date"], x["time_m"]), axis=1
-    )
-    return df
+    # Merge date and time using Ibis expressions
+    return table.mutate(timestamp=ibis.func.datetime.combine(table.date, table.time_m))
 
 
-def merge_symbol(df: pd.DataFrame) -> pd.DataFrame:
+def merge_symbol(table: "Table") -> "Table":
     """Merges symbol and sym_root columns.
 
     Args:
-        df (pd.DataFrame): Original DataFrame
+        table (Table): Original Ibis table with 'sym_root' and 'sym_suffix' columns
 
     Returns:
-        pd.DataFrame: Cleaned DataFrame
+        Table: Table with merged symbol column
     """
-    # Merge symbol
-    df["symbol"] = df["sym_root"]
-    sel = df.sym_suffix.notnull()
-    df.loc[sel, "symbol"] = df.loc[sel, "sym_root"] + " " + df.loc[sel, "sym_suffix"]
-    return df
+    # Merge symbol using conditional logic
+    return table.mutate(
+        symbol=table.sym_suffix.isnull().ifelse(
+            table.sym_root, table.sym_root + " " + table.sym_suffix
+        )
+    )

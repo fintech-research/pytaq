@@ -1,38 +1,47 @@
-from typing import Union, Optional
 from datetime import time
+from typing import TYPE_CHECKING, Optional, Union
 
-import pandas as pd
+import ibis
+
+if TYPE_CHECKING:
+    from ibis.expr.types import Column, Table
 
 
 def filter_timestamp(
-    df: pd.DataFrame,
-    timestamp: Union[str, pd.Series],
+    table: "Table",
+    timestamp: Union[str, "Column"],
     start_time: Optional[time] = None,
     end_time: Optional[time] = None,
-) -> pd.DataFrame:
-    """Filters a DataFrame based on timestamp
+) -> "Table":
+    """Filters a table based on timestamp
 
     Args:
-        df (pd.DataFrame): DataFrame to filter
-        timestamp (Union[str, pd.Series]): Timestamp to use for filtering
+        table (Table): Table to filter
+        timestamp (Union[str, Column]): Timestamp column to use for filtering
         start_time (Optional[time], optional): Start time
         end_time (Optional[time], optional): End time
 
     Returns:
-        pd.DataFrame: Filtered DataFrame
+        Table: Filtered table
     """
     if isinstance(timestamp, str):
-        timestamp = df[timestamp]
-    elif isinstance(timestamp, pd.Series):
-        if timestamp.index != df.index:
-            raise ValueError("df and timestamp should have the same index")
+        timestamp_col = table[timestamp]
+    elif isinstance(timestamp, ibis.expr.types.Column):
+        timestamp_col = timestamp
     else:
-        raise ValueError("timestamp should be a pandas Series or a column name.")
+        raise ValueError("timestamp should be an Ibis Column or a column name.")
 
-    if start_time is not None and end_time is not None:
-        return df[(timestamp.dt.time >= start_time) & (timestamp.dt.time < end_time)]
-    elif start_time is not None:
-        return df[timestamp.dt.time >= start_time]
-    elif end_time is not None:
-        return df[timestamp.dt.time < end_time]
-    return df
+    # Build filter conditions
+    conditions = []
+
+    if start_time is not None:
+        conditions.append(timestamp_col.time() >= start_time)
+
+    if end_time is not None:
+        conditions.append(timestamp_col.time() < end_time)
+
+    # Apply filters
+    if conditions:
+        return table.filter(ibis.and_(*conditions))
+
+    return table
