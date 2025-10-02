@@ -20,6 +20,7 @@ dev = [
     "polars>=1.13.0",
     "pyarrow>=17",
     "pytest>=8.3.3",
+    "pytest-cov>=7.0.0",
     "python-dotenv>=1.0.1",
 ]
 

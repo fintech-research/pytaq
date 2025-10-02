@@ -141,4 +141,88 @@ def test_sign_bjz_edge_cases(con):
     assert result["bjz_sign"].iloc[5] == 1  # buy
 
 
+def test_sign_lr_basic(con):
+    """Test Lee-Ready sign classification."""
+    data = pd.DataFrame({
+        "price": [100.5, 99.5, 100.0, 100.0],
+        "midpoint": [100.0, 100.0, 100.0, 100.0],
+        "tick_dir": [1, -1, 1, -1],
+        "lock_cross": [False, False, False, True],
+    })
+    table = con.create_table("test", data)
+
+    result = table.mutate(
+        lr_sign=sign_lr(table.price, table.midpoint, table.tick_dir, table.lock_cross)
+    ).execute()
+
+    # First: price > midpoint, not locked -> buy (1)
+    assert result["lr_sign"].iloc[0] == 1
+    # Second: price < midpoint, not locked -> sell (-1)
+    assert result["lr_sign"].iloc[1] == -1
+    # Third: price == midpoint, not locked -> use tick (1)
+    assert result["lr_sign"].iloc[2] == 1
+    # Fourth: locked -> use tick (-1)
+    assert result["lr_sign"].iloc[3] == -1
+
+
+def test_sign_emo_basic(con):
+    """Test EMO sign classification."""
+    data = pd.DataFrame({
+        "price": [100.5, 99.5, 100.2, 100.5],
+        "best_bid": [99.5, 99.5, 99.5, 99.5],
+        "best_ask": [100.5, 100.5, 100.5, 100.5],
+        "tick_dir": [1, -1, 1, -1],
+        "lock_cross": [False, False, False, True],
+    })
+    table = con.create_table("test", data)
+
+    result = table.mutate(
+        emo_sign=sign_emo(
+            table.price, table.best_bid, table.best_ask, table.tick_dir, table.lock_cross
+        )
+    ).execute()
+
+    # First: price == ask, not locked -> buy (1)
+    assert result["emo_sign"].iloc[0] == 1
+    # Second: price == bid, not locked -> sell (-1)
+    assert result["emo_sign"].iloc[1] == -1
+    # Third: price between bid/ask, not locked -> use tick (1)
+    assert result["emo_sign"].iloc[2] == 1
+    # Fourth: locked -> use tick (-1)
+    assert result["emo_sign"].iloc[3] == -1
+
+
+def test_sign_clnv_basic(con):
+    """Test CLNV sign classification."""
+    data = pd.DataFrame({
+        # Spread = 1.0, threshold 0.3 means ±0.3 from bid/ask
+        "price": [100.4, 99.6, 100.0, 100.5],
+        "best_bid": [99.5, 99.5, 99.5, 99.5],
+        "best_ask": [100.5, 100.5, 100.5, 100.5],
+        "tick_dir": [1, -1, 1, -1],
+        "lock_cross": [False, False, False, True],
+    })
+    table = con.create_table("test", data)
+
+    result = table.mutate(
+        clnv_sign=sign_clnv(
+            table.price,
+            table.best_bid,
+            table.best_ask,
+            table.tick_dir,
+            table.lock_cross,
+            threshold=0.3,
+        )
+    ).execute()
+
+    # First: price >= ask_th (100.2) and <= ask -> buy (1)
+    assert result["clnv_sign"].iloc[0] == 1
+    # Second: price <= bid_th (99.8) and >= bid -> sell (-1)
+    assert result["clnv_sign"].iloc[1] == -1
+    # Third: price in middle -> use tick (1)
+    assert result["clnv_sign"].iloc[2] == 1
+    # Fourth: locked -> use tick (-1)
+    assert result["clnv_sign"].iloc[3] == -1
+
+
 # TODO: Add test_sign_tick_basic once window API is fixed
