@@ -22,16 +22,11 @@ def compute_effective_spreads(trade_and_nbbo_table: "Table") -> "Table":
 
     # Compute effective spreads
     result_table = filtered_table.mutate(
-        DollarEffectiveSpread=ibis.func.abs(
-            trade_and_nbbo_table.price - trade_and_nbbo_table.midpoint
-        )
-        * 2,
+        DollarEffectiveSpread=(
+            (filtered_table.price - filtered_table.midpoint).abs() * 2
+        ),
         PercentEffectiveSpread=(
-            ibis.func.abs(
-                ibis.func.ln(trade_and_nbbo_table.price)
-                - ibis.func.ln(trade_and_nbbo_table.midpoint)
-            )
-            * 2
+            (filtered_table.price.log() - filtered_table.midpoint.log()).abs() * 2
         ),
     )
 

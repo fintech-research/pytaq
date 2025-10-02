@@ -147,8 +147,8 @@ def clean_quote_table(
         nbbo_only=nbbo_only,
     )
 
-    # Rename columns
-    t = t.rename(ask="best_ask", bid="best_bid", ex="best_bidex")
+    # Rename columns (Ibis rename uses {new_name: old_name} mapping)
+    t = t.rename(best_ask="ask", best_bid="bid", best_bidex="ex")
     t = t.mutate(best_askex=t.best_bidex)
 
     # Bid/ask size are in round lots

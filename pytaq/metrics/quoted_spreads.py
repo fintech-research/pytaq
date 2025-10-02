@@ -51,7 +51,7 @@ def compute_quote_inforce(
     # Handle missing values for the last quote of the day
     table = table.mutate(
         inforce=table.temp_inforce.isnull().ifelse(
-            ibis.func.abs((end_timestamp - table[timestamp_col]).total_seconds()),
+            ((end_timestamp - table[timestamp_col]).total_seconds()).abs(),
             table.temp_inforce,
         )
     )
@@ -70,8 +70,7 @@ def compute_spreads(table: "Table") -> "Table":
     """
     return table.mutate(
         quoted_spread_dollar=table.best_ask - table.best_bid,
-        quoted_spread_percent=ibis.func.ln(table.best_ask)
-        - ibis.func.ln(table.best_bid),
+        quoted_spread_percent=table.best_ask.log() - table.best_bid.log(),
         best_ofr_depth_dollar=table.best_ask * table.best_asksizeshares,
         best_bid_depth_dollar=table.best_bid * table.best_bidsizeshares,
         best_ofr_depth_share=table.best_asksizeshares,

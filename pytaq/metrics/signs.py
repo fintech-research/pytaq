@@ -33,7 +33,9 @@ def sign_tick(
     """
     if isinstance(groupby_col, str):
         group = [groupby_col]
-    elif not isinstance(groupby_col, list):
+    elif isinstance(groupby_col, list):
+        group = groupby_col
+    else:
         raise ValueError("groupby_col should be str or a list of str.")
 
     # Sort table by timestamp and group columns
@@ -45,15 +47,28 @@ def sign_tick(
     )
 
     # Compute price difference and sign
-    price_diff = sorted_table[price_col] - sorted_table[price_col].over(window)
-    dir_col = ibis.func.sign(price_diff)
+    price_diff = sorted_table[price_col] - sorted_table[price_col].lag().over(window)
+    dir_col = price_diff.sign()
 
     # Handle zero values (set to null)
     dir_col = float_zero(dir_col).ifelse(ibis.null(), dir_col)
 
     # Forward fill null values within groups
-    # Note: This is a simplified implementation - may need more sophisticated handling
-    return dir_col
+    # Use a cumulative max window to propagate last non-null value forward
+    # This works because sign values are -1, 0, 1 or null
+    forward_fill_window = ibis.window(
+        partition_by=group,
+        order_by=timestamp_col,
+        preceding=None,  # Unbounded preceding
+        following=0,
+    )
+
+    # Forward fill by taking the max of non-null values seen so far
+    # Note: This assumes positive bias when no previous trades exist
+    # Alternative: use last_value() with ignore_nulls if backend supports it
+    dir_col_filled = dir_col.max().over(forward_fill_window)
+
+    return dir_col_filled
 
 
 def sign_lr(

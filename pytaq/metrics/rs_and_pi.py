@@ -45,7 +45,7 @@ def percent_realized_spread(
     Returns:
         Column: Percent realized spread
     """
-    s = sign * (ibis.func.ln(price) - ibis.func.ln(midpoint_next)) * 2
+    s = sign * (price.log() - midpoint_next.log()) * 2
     return correct_float_approx(s, price, midpoint_next)
 
 
@@ -83,7 +83,7 @@ def percent_price_impact(
     Returns:
         Column: Percent price impact
     """
-    s = sign * (ibis.func.ln(midpoint_next) - ibis.func.ln(midpoint)) * 2
+    s = sign * (midpoint_next.log() - midpoint.log()) * 2
     return correct_float_approx(s, midpoint, midpoint_next)
 
 

@@ -28,7 +28,15 @@ def float_equal(s1: "Column", s2: "Column", atol: float = DEFAULT_ATOL) -> "Colu
     Returns:
         Column: Column of boolean indicating approximate equality
     """
-    return ibis.func.isclose(s1, s2, atol=atol, rtol=0.0, equal_nan=True)
+    # Implement isclose manually: |s1 - s2| <= atol
+    # Handle NaN: both NaN should be considered equal
+    diff = (s1 - s2).abs()
+    within_tol = diff <= atol
+
+    # Check if both are null/NaN and treat as equal
+    both_null = s1.isnull() & s2.isnull()
+
+    return both_null | within_tol
 
 
 def float_zero(s: "Column", atol: float = DEFAULT_ATOL) -> "Column":

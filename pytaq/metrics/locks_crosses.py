@@ -56,4 +56,4 @@ def filter_locks_crosses(table: "Table", asks: "Column", bids: "Column") -> "Tab
     Returns:
         Table: Filtered table
     """
-    return table.filter(~locked_rows(asks, bids))
+    return table.filter(~locked_crossed_rows(asks, bids))
