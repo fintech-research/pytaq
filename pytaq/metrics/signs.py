@@ -165,22 +165,57 @@ def sign_clnv(
 def sign_bjz(price: "Column", ex: "Column") -> "Column":
     """Compute BJZ retail trade sign.
 
+    The BJZ (Boehmer, Jones, Zhang) algorithm classifies retail trades based on
+    sub-penny price patterns. It only applies to off-exchange trades (ex='D').
+
+    The algorithm:
+    1. Computes z = 100 * (price mod 0.01) - extracts sub-cent decimals (3rd & 4th decimal places)
+    2. Classifies as:
+       - Sell (-1): if 0.0001 <= z < 0.4 (prices ending in .XX01 to .XX39)
+       - Buy (+1): if 0.6 <= z < 0.9999 (prices ending in .XX60 to .XX99)
+       - Unclassified (null): otherwise (prices ending in .XX00, .XX40-.XX59)
+
+    Examples:
+        100.1234 -> z = 34.0 -> Sell (-1)
+        100.7568 -> z = 68.0 -> Buy (+1)
+        100.5000 -> z = 0.0 -> Unclassified (null)
+
     Args:
         price (Column): Price column
         ex (Column): Exchange column
 
     Returns:
-        Column: BJZ trade sign
+        Column: BJZ trade sign (-1 for sell, +1 for buy, null for unclassified or non-off-exchange)
     """
-    # Compute retail sign following "TRACKING RETAIL INVESTOR ACTIVITY"
-    # by EKKEHART BOEHMER, CHARLES M. JONES, and XIAOYAN ZHANG
+    # Only apply to off-exchange trades (exchange = 'D')
+    is_off_exchange = ex == "D"
 
-    # This is a simplified implementation - the original logic may need more sophisticated handling
-    # in Ibis depending on the backend capabilities
+    # Compute z = 100 * (price mod 0.01)
+    # This extracts the sub-cent decimals (3rd and 4th decimal places)
+    # For example: 100.1234 -> (100.1234 - 100.12) * 100 = 0.0034 * 100 = 0.34 * 100 = 34.0
+    frac_part = price - price.floor()  # Get fractional part (e.g., 0.1234)
+    cents_shifted = frac_part * 100  # Shift to cents (e.g., 12.34)
+    sub_cent = cents_shifted - cents_shifted.floor()  # Get sub-cent part (e.g., 0.34)
+    z = sub_cent * 100  # Scale to 0-100 range (e.g., 34.0)
 
-    # For now, return a placeholder - this would need custom UDF or more complex logic
-    # to implement the modulo operation and conditional logic
-    return ibis.null()
+    # Define thresholds (z is scaled to 0-100 range)
+    epsilon = 0.01  # Small epsilon for floating point comparison
+
+    # Classify based on z value
+    # Sell: 0.01 <= z < 40
+    is_sell = (z >= epsilon) & (z < 40)
+    # Buy: 60 <= z < 99.99
+    is_buy = (z >= 60) & (z < (100 - epsilon))
+
+    # Compute sign: -1 for sell, +1 for buy, null otherwise
+    bjz_sign = ibis.null().cast("int8")
+    bjz_sign = is_sell.ifelse(-1, bjz_sign)
+    bjz_sign = is_buy.ifelse(1, bjz_sign)
+
+    # Only return sign for off-exchange trades, null for others
+    result = is_off_exchange.ifelse(bjz_sign, ibis.null().cast("int8"))
+
+    return result
 
 
 def sign_trades(
