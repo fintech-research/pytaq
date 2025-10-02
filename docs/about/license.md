@@ -1,0 +1,66 @@
+# License
+
+PyTAQ is released under the MIT License.
+
+## MIT License
+
+Copyright (c) 2024 Vincent Grégoire
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+## Third-Party Licenses
+
+PyTAQ depends on several open-source projects:
+
+### Ibis
+- License: Apache License 2.0
+- Website: https://ibis-project.org/
+
+### DuckDB
+- License: MIT License
+- Website: https://duckdb.org/
+
+### Pandas
+- License: BSD 3-Clause License
+- Website: https://pandas.pydata.org/
+
+### Python
+- License: PSF License
+- Website: https://www.python.org/
+
+For a complete list of dependencies and their licenses, see the `pyproject.toml` file.
+
+## Academic Use
+
+If you use PyTAQ in academic research, please cite it as:
+
+```bibtex
+@software{pytaq,
+  author = {Grégoire, Vincent},
+  title = {PyTAQ: Python Module for Processing NYSE TAQ Data},
+  year = {2024},
+  url = {https://github.com/vincentgregoire/pytaq}
+}
+```
+
+## Contributing
+
+By contributing to PyTAQ, you agree that your contributions will be licensed under the MIT License.
+
+See the [Contributing Guide](../contributing/development.md) for more information.
