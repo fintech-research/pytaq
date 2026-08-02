@@ -101,19 +101,6 @@ invalid-argument-type = "ignore"
 invalid-return-type = "ignore"
 unsupported-operator = "ignore"
 
-# Scoped, temporary suppressions for bugs already filed. Without these the
-# pre-commit hook fails on every commit until they land. Delete each block as
-# its issue closes.
-
-# #9: asof_join is called with by= and suffixes=, which do not exist, and
-# without the required on=.
-[[tool.ty.overrides]]
-include = ["pytaq/cleaning/merge_trades_official_nbbo.py"]
-
-[tool.ty.overrides.rules]
-unknown-argument = "ignore"
-missing-argument = "ignore"
-
 [tool.ruff.format]
 line-ending = "lf"
 docstring-code-format = true
