@@ -84,6 +84,27 @@ dev = [
     "ty>=0.0.65",
 ]
 
+[tool.pytest.ini_options]
+addopts = "--strict-markers"
+markers = [
+    "duckdb_only: needs a backend with window functions; polars has none",
+]
+
+[tool.coverage.run]
+source = ["pytaq"]
+# Test files are 100% covered by construction. Counting them inflated the
+# reported figure from 47% to 75% at one point, so they are excluded.
+omit = ["*/test_*.py", "*/conftest.py"]
+
+[tool.coverage.report]
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "@overload",
+]
+fail_under = 90
+show_missing = true
+
 [tool.ty.src]
 exclude = [".venv", "site", "dist"]
 
