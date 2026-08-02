@@ -145,32 +145,21 @@ def filter_changes_only(t: ibis.Table) -> ibis.Table:
     Returns:
         ibis.Table: Table with only changed quotes
     """
-    # Keep only changes
-    # There is a slight difference here with the SAS code because
-    # in Python np.nan == np.nan is False. Should not affect end
-    # results, but this means consecutive entries with all null symbols
-    # won't be removed. We add a second condition to remove those.
     window = ibis.window(order_by=[t.symbol, t.timestamp], group_by=[t.symbol])
 
-    sel = (
-        (t.best_ask != t.best_ask.lag().over(window))
-        | (t.best_bid != t.best_bid.lag().over(window))
-        | (t.best_bidsizeshares != t.best_bidsizeshares.lag().over(window))
-        | (t.best_asksizeshares != t.best_asksizeshares.lag().over(window))
+    # Compare each field against the previous row with `identical_to`, which is
+    # IS NOT DISTINCT FROM: null-to-null counts as unchanged, null-to-value as a
+    # change. A plain `!=` yields NULL whenever either side is null, and the
+    # first row of every symbol has a null lag on all four fields, so the
+    # opening quote of each symbol was being dropped.
+    changed = (
+        ~t.best_ask.identical_to(t.best_ask.lag().over(window))
+        | ~t.best_bid.identical_to(t.best_bid.lag().over(window))
+        | ~t.best_bidsizeshares.identical_to(t.best_bidsizeshares.lag().over(window))
+        | ~t.best_asksizeshares.identical_to(t.best_asksizeshares.lag().over(window))
     )
 
-    sel_all_null = (
-        t.best_ask.isnull()
-        & t.best_bid.isnull()
-        & t.best_bidsizeshares.isnull()
-        & t.best_asksizeshares.isnull()
-        & t.best_ask.lag().over(window).isnull()
-        & t.best_bid.lag().over(window).isnull()
-        & t.best_bidsizeshares.lag().over(window).isnull()
-        & t.best_asksizeshares.lag().over(window).isnull()
-    )
-
-    return t.filter(sel | sel_all_null)
+    return t.filter(changed)
 
 
 def clean_nbbo(
@@ -194,8 +183,10 @@ def clean_nbbo(
         # Quote condition must be normal
         t = t.filter(t.qu_cond.isin(keep_qu_cond))
     if delete_canceled_quotes:
-        # Delete if canceled
-        t = t.filter(t.qu_cancel != "B")
+        # Delete if canceled. A null cancel flag means "not canceled", but in
+        # SQL `NULL != 'B'` is NULL rather than true, so it has to be spelled
+        # out or every such quote is silently dropped.
+        t = t.filter((t.qu_cancel != "B") | t.qu_cancel.isnull())
     if delete_empty_quotes:
         t = filter_empty_quotes(t)
     t = compute_spreads_best_quotes(t)

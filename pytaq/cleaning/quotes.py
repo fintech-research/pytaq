@@ -79,8 +79,10 @@ def filter_quote_table(
         t = t.filter(t.qu_cond.isin(keep_qu_cond))
 
     if delete_canceled_quotes:
-        # Delete if canceled
-        t = t.filter(t.qu_cancel != "B")
+        # Delete if canceled. A null cancel flag means "not canceled", but in
+        # SQL `NULL != 'B'` is NULL rather than true, so it has to be spelled
+        # out or every such quote is silently dropped.
+        t = t.filter((t.qu_cancel != "B") | t.qu_cancel.isnull())
 
     if delete_crossed_markets:
         # Delete abnormal crossed markets

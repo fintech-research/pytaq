@@ -299,3 +299,30 @@ def test_filter_withdrawned_quotes_edge_cases(duckdb_con):
     assert len(result) == 1
     assert result["bidsiz"].iloc[0] == 100
     assert result["asksiz"].iloc[0] == 100
+
+
+def test_filter_quote_table_keeps_null_qu_cancel(duckdb_con):
+    """A null cancel flag means "not canceled" and must not drop the quote.
+
+    Regression test: `qu_cancel != "B"` alone evaluates to NULL for null
+    cancel flags, which silently discarded every such quote.
+    """
+    data = pd.DataFrame(
+        {
+            "qu_cond": pd.Series(["R", "R", "R"], dtype="string"),
+            "qu_cancel": pd.Series([None, "", "B"], dtype="string"),
+            "bid": [10.0, 10.0, 10.0],
+            "ask": [10.5, 10.5, 10.5],
+            "bidsiz": [100, 100, 100],
+            "asksiz": [100, 100, 100],
+            "qu_source": pd.Series(["C", "C", "C"], dtype="string"),
+            "natbbo_ind": pd.Series(["1", "1", "1"], dtype="string"),
+        }
+    )
+    table = duckdb_con.create_table("quotes_null_cancel", data)
+
+    result = filter_quote_table(table).execute()
+
+    # The null and the empty-string rows survive; only the explicit "B" goes.
+    assert len(result) == 2
+    assert "B" not in set(result["qu_cancel"].dropna())
