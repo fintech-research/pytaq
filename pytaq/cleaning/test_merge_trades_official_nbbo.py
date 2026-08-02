@@ -1,3 +1,5 @@
+import datetime
+
 import ibis
 import pandas as pd
 import pytest
@@ -122,3 +124,102 @@ def test_merge_is_never_forward_looking(duckdb_con):
 
     assert len(result) == 1
     assert pd.isna(result["best_bid"].iloc[0])
+
+
+# ---------------------------------------------------------------------------
+# Trade-to-quote lag (#40)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def same_instant(duckdb_con):
+    """A quote in the same millisecond as the trade, and one 5ms earlier."""
+    quotes = pd.DataFrame(
+        {
+            "symbol": pd.Series(["A", "A"], dtype="string"),
+            "timestamp": pd.to_datetime(
+                ["2020-01-02 09:30:00.000", "2020-01-02 09:30:00.005"]
+            ),
+            "best_bid": [99.0, 98.0],
+            "best_ask": [101.0, 102.0],
+        }
+    )
+    trades = pd.DataFrame(
+        {
+            "symbol": pd.Series(["A"], dtype="string"),
+            "timestamp": pd.to_datetime(["2020-01-02 09:30:00.005"]),
+            "price": [100.0],
+        }
+    )
+    return (
+        duckdb_con.create_table("lag_trades", trades),
+        duckdb_con.create_table("lag_quotes", quotes),
+    )
+
+
+def test_default_lag_excludes_the_same_instant_quote(same_instant):
+    """H&J specify a one-millisecond lag for DTAQ.
+
+    A quote stamped in the same instant as the trade may be a consequence of
+    it, so it is not the state the trader faced.
+    """
+    trades, quotes = same_instant
+
+    result = merge_trades_official_nbbo(trades, quotes).execute()
+
+    assert result["best_bid"].iloc[0] == 99.0
+    assert result["best_ask"].iloc[0] == 101.0
+
+
+def test_zero_lag_matches_contemporaneous_quotes(same_instant):
+    """Passing timedelta(0) recovers the previous behaviour."""
+    trades, quotes = same_instant
+
+    result = merge_trades_official_nbbo(
+        trades, quotes, lag=datetime.timedelta(0)
+    ).execute()
+
+    assert result["best_bid"].iloc[0] == 98.0
+    assert result["best_ask"].iloc[0] == 102.0
+
+
+def test_a_longer_lag_reaches_further_back(duckdb_con):
+    """The lag is honoured as a duration, not just as a tiebreak."""
+    quotes = pd.DataFrame(
+        {
+            "symbol": pd.Series(["A", "A"], dtype="string"),
+            "timestamp": pd.to_datetime(
+                ["2020-01-02 09:30:00.000", "2020-01-02 09:30:00.500"]
+            ),
+            "best_bid": [99.0, 98.0],
+            "best_ask": [101.0, 102.0],
+        }
+    )
+    trades = pd.DataFrame(
+        {
+            "symbol": pd.Series(["A"], dtype="string"),
+            "timestamp": pd.to_datetime(["2020-01-02 09:30:00.600"]),
+            "price": [100.0],
+        }
+    )
+    t = duckdb_con.create_table("long_lag_trades", trades)
+    q = duckdb_con.create_table("long_lag_quotes", quotes)
+
+    # 1ms back from 09:30:00.600 is still after the 09:30:00.500 quote.
+    near = merge_trades_official_nbbo(t, q).execute()
+    assert near["best_bid"].iloc[0] == 98.0
+
+    # 200ms back lands before it, so the earlier quote applies.
+    far = merge_trades_official_nbbo(
+        t, q, lag=datetime.timedelta(milliseconds=200)
+    ).execute()
+    assert far["best_bid"].iloc[0] == 99.0
+
+
+def test_lag_does_not_drop_trades(same_instant):
+    """Changing the lag must not change the trade count."""
+    trades, quotes = same_instant
+
+    for lag in [datetime.timedelta(0), datetime.timedelta(milliseconds=1)]:
+        result = merge_trades_official_nbbo(trades, quotes, lag=lag).execute()
+        assert len(result) == 1
