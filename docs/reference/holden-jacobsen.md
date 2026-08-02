@@ -72,14 +72,14 @@ Dollar measures agree throughout. Percent measures do not: H&J divide the dollar
 
 | Step | Holden and Jacobsen | PyTAQ | Status |
 |---|---|---|---|
-| Quoted spread, time-weighted | `sum(x·inforce) / sum(inforce)` | `compute_weighted_averages` | matches in form, null bias, #32 |
+| Quoted spread, time-weighted | `sum(x·inforce) / sum(inforce)` | `compute_weighted_averages` | matches, denominator restricted to observed rows |
 | Last quote in force until 16:00 | `inforce = max(end - t, 0)` | `end_timestamp` parameter | matches |
 | Effective spread, simple average | `mean(x)` | `compute_averages` | matches |
-| Share-weighted | `sum(x·size) / sum(size)` | same | matches in form, null bias, #32 |
-| Dollar-weighted | `sum(x·dollar) / sum(dollar)` | same | matches in form, null bias, #32 |
+| Share-weighted | `sum(x·size) / sum(size)` | same | matches, denominator restricted to observed rows |
+| Dollar-weighted | `sum(x·dollar) / sum(dollar)` | same | matches, denominator restricted to observed rows |
 | Quoted-spread statistics window | quotes before 09:30 deleted **after** the NBBO is built | uses one window throughout | differs, minor |
 
-On #32: H&J's data has no missing measures at the point of aggregation, so the null-weighting question never arises for them. PyTAQ's fix is a deliberate improvement rather than a divergence, but it is a place where the two can differ on data containing nulls, and that is worth knowing when comparing output.
+On the weighted averages: H&J sum the full weight column, which is correct for their data because no measure is missing at the point of aggregation. PyTAQ restricts both sums to rows where the measure and the weight are observed. On complete data the two agree exactly; on data with nulls PyTAQ is right and a literal transcription of the SAS would be biased toward zero. Worth knowing when comparing output. See #32.
 
 ## Not implemented
 
