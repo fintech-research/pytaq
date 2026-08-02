@@ -480,4 +480,4 @@ print(summary)
 
 - Review [extraction guide](extraction.md) for loading NBBO data
 - Learn about [metrics computation](metrics.md) for advanced analysis
-- Explore [API documentation](../api/extract.md) for NBBO-specific functions
+- Explore [API documentation](../api/cleaning.md) for NBBO-specific functions

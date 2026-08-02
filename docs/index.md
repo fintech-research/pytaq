@@ -61,7 +61,7 @@ Ready to dive in? Check out the [Installation Guide](getting-started/installatio
 
 ## Support
 
-- 📖 Browse the [API Reference](api/extract.md) for detailed function documentation
+- 📖 Browse the [API Reference](api/cleaning.md) for detailed function documentation
 - 💡 Check the [User Guide](user-guide/extraction.md) for common workflows
 - 🐛 Report issues on [GitHub](https://github.com/vincentgregoire/pytaq/issues)
 - 🤝 See [Contributing](contributing/development.md) to help improve PyTAQ

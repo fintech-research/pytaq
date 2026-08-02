@@ -182,4 +182,4 @@ logger.setLevel(logging.DEBUG)
 
 - See [Quick Start](quickstart.md) for examples
 - Check [User Guide](../user-guide/extraction.md) for workflows
-- Read [API Reference](../api/extract.md) for all options
+- Read [API Reference](../api/cleaning.md) for all options
