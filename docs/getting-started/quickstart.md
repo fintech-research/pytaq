@@ -169,6 +169,6 @@ result = result[result["symbol"] == "AAPL"]
 ## Next Steps
 
 - Explore the [User Guide](../user-guide/extraction.md) for detailed workflows
-- Check the [API Reference](../api/extract.md) for complete function documentation
+- Check the [API Reference](../api/cleaning.md) for complete function documentation
 - Learn about [Data Cleaning](../user-guide/cleaning.md) options
 - See [Computing Metrics](../user-guide/metrics.md) for all available calculations

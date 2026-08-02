@@ -79,7 +79,6 @@ nav:
       - Computing Metrics: user-guide/metrics.md
       - Working with NBBO: user-guide/nbbo.md
   - API Reference:
-      - Extract Module: api/extract.md
       - Cleaning Module: api/cleaning.md
       - Metrics Module: api/metrics.md
       - Utils Module: api/utils.md

@@ -105,15 +105,6 @@ unsupported-operator = "ignore"
 # pre-commit hook fails on every commit until they land. Delete each block as
 # its issue closes.
 
-# #5: the legacy raw-SQL extraction path imports the undeclared `wrds` package.
-# The whole directory goes away.
-[[tool.ty.overrides]]
-include = ["pytaq/extract/**"]
-
-[tool.ty.overrides.rules]
-unresolved-import = "ignore"
-unknown-argument = "ignore"
-
 # #7: ibis.window(partition_by=) should be group_by=. unresolved-attribute also
 # covers the `.total_seconds().abs()` call at quoted_spreads.py:54, in the same
 # broken function.
