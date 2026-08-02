@@ -241,3 +241,107 @@ def test_merge_symbol_preserves_other_columns(duckdb_con):
     assert "volume" in result.columns
     assert result["price"].iloc[0] == 150.0
     assert result["volume"].iloc[0] == 1000
+
+
+# ---------------------------------------------------------------------------
+# time_m arrives in two shapes, and both are real (#29)
+#
+# The WRDS postgres server types time_m as a SQL time; local exports commonly
+# carry it as a double of seconds since midnight. The tests above cover the
+# numeric shape, which was the only one the code originally handled.
+# ---------------------------------------------------------------------------
+
+# The same three observations, expressed both ways.
+_TIMES = [
+    datetime.time(9, 30, 0, 0),
+    datetime.time(9, 30, 0, 436516),
+    datetime.time(15, 59, 59, 999999),
+]
+_SECONDS = [34200.0, 34200.436516, 57599.999999]
+
+
+@pytest.fixture
+def time_typed(duckdb_con):
+    """A table whose time_m is a SQL time, as WRDS postgres returns."""
+    frame = pd.DataFrame(
+        {"date": [datetime.date(2020, 1, 2)] * 3, "time_m": _TIMES, "row": [0, 1, 2]}
+    )
+    table = duckdb_con.create_table("time_typed", frame)
+    assert table.time_m.type().is_time(), "fixture must carry a real time column"
+    return table
+
+
+@pytest.fixture
+def numeric_typed(duckdb_con):
+    """A table whose time_m is seconds since midnight, as local exports carry."""
+    frame = pd.DataFrame(
+        {"date": [datetime.date(2020, 1, 2)] * 3, "time_m": _SECONDS, "row": [0, 1, 2]}
+    )
+    table = duckdb_con.create_table("numeric_typed", frame)
+    assert table.time_m.type().is_numeric()
+    return table
+
+
+def test_merge_datetime_accepts_a_time_column(time_typed):
+    """Regression test: this raised AttributeError on real WRDS data.
+
+    `TimeColumn` has no `.floor()`, so the numeric implementation could not
+    touch a postgres table at all.
+    """
+    result = merge_datetime(time_typed).execute().sort_values("row")
+
+    assert [ts.time() for ts in result["timestamp"]] == _TIMES
+
+
+def test_both_time_m_shapes_give_the_same_timestamp(time_typed, numeric_typed):
+    """The two schemas describe the same instants and must agree."""
+    from_time = merge_datetime(time_typed).execute().sort_values("row")
+    from_numeric = merge_datetime(numeric_typed).execute().sort_values("row")
+
+    assert list(from_time["timestamp"]) == list(from_numeric["timestamp"])
+
+
+def test_filter_by_time_accepts_a_time_column(time_typed):
+    """Regression test: comparing a time column against a float raised."""
+    result = filter_by_time(
+        time_typed, datetime.time(9, 30, 0, 1), datetime.time(16, 0)
+    ).execute()
+
+    # Drops the 09:30:00.000000 row, keeps the other two.
+    assert sorted(result["row"]) == [1, 2]
+
+
+def test_both_time_m_shapes_filter_identically(time_typed, numeric_typed):
+    start, end = datetime.time(9, 30, 0, 1), datetime.time(16, 0)
+
+    from_time = filter_by_time(time_typed, start, end).execute()
+    from_numeric = filter_by_time(numeric_typed, start, end).execute()
+
+    assert sorted(from_time["row"]) == sorted(from_numeric["row"])
+
+
+def test_merge_datetime_rejects_an_unusable_time_m(duckdb_con):
+    """A string time_m is a schema mistake and should say so, not guess."""
+    frame = pd.DataFrame(
+        {
+            "date": [datetime.date(2020, 1, 2)],
+            "time_m": pd.Series(["09:30:00"], dtype="string"),
+        }
+    )
+    table = duckdb_con.create_table("string_time", frame)
+
+    with pytest.raises(TypeError, match="time or a numeric"):
+        merge_datetime(table)
+
+
+def test_filter_by_time_rejects_an_unusable_time_m(duckdb_con):
+    frame = pd.DataFrame(
+        {
+            "date": [datetime.date(2020, 1, 2)],
+            "time_m": pd.Series(["09:30:00"], dtype="string"),
+        }
+    )
+    table = duckdb_con.create_table("string_time_filter", frame)
+
+    with pytest.raises(TypeError, match="time or a numeric"):
+        filter_by_time(table, datetime.time(9, 30), datetime.time(16, 0))
