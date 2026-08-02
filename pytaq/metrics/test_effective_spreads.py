@@ -1,4 +1,7 @@
+import math
+
 import ibis
+import pandas as pd
 import pytest
 
 from .effective_spreads import compute_effective_spreads
@@ -150,3 +153,54 @@ def test_compute_effective_spreads_preserves_columns(con):
     assert "price" in result.columns
     assert "midpoint" in result.columns
     assert "volume" in result.columns
+
+
+# ---------------------------------------------------------------------------
+# Percent convention (#39)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def one_trade(con):
+    """A single trade 50 cents above a midpoint of 100."""
+    data = pd.DataFrame(
+        {
+            "price": [100.5],
+            "midpoint": [100.0],
+            "lock": [0],
+            "cross": [0],
+        }
+    )
+    return con.create_table("one_trade", data)
+
+
+def test_percent_effective_spread_defaults_to_the_hj_ratio(one_trade):
+    """H&J define the percent measure as the dollar measure over the midpoint."""
+    result = compute_effective_spreads(one_trade).execute()
+
+    # 2*|100.5 - 100.0| = 1.0, and 1.0 / 100.0 = 0.01
+    assert result["DollarEffectiveSpread"].iloc[0] == pytest.approx(1.0)
+    assert result["PercentEffectiveSpread"].iloc[0] == pytest.approx(0.01)
+
+
+def test_percent_effective_spread_log_convention_is_available(one_trade):
+    result = compute_effective_spreads(one_trade, percent_method="log").execute()
+
+    expected = abs(math.log(100.5) - math.log(100.0)) * 2
+    assert result["PercentEffectiveSpread"].iloc[0] == pytest.approx(expected)
+    # Close to the ratio form, but not equal to it.
+    assert result["PercentEffectiveSpread"].iloc[0] != pytest.approx(0.01, abs=1e-12)
+
+
+def test_dollar_effective_spread_does_not_depend_on_the_convention(one_trade):
+    ratio = compute_effective_spreads(one_trade).execute()
+    log = compute_effective_spreads(one_trade, percent_method="log").execute()
+
+    assert (
+        ratio["DollarEffectiveSpread"].iloc[0] == log["DollarEffectiveSpread"].iloc[0]
+    )
+
+
+def test_unknown_percent_method_is_rejected(one_trade):
+    with pytest.raises(ValueError, match="percent_method must be one of"):
+        compute_effective_spreads(one_trade, percent_method="geometric")

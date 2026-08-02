@@ -57,6 +57,18 @@ effective = compute_effective_spreads(signed)
 
 `compute_spreads` adds `quoted_spread_dollar` and `quoted_spread_percent` to a quote table, along with depth in dollars and shares on each side.
 
+### Percent conventions
+
+Every percent measure follows Holden and Jacobsen by default: the dollar measure divided by the reference midpoint. The log-difference form is available on each function:
+
+```python
+compute_spreads(nbbo, percent_method="log")
+compute_effective_spreads(signed, percent_method="log")
+compute_rs_and_pi(signed, nbbo, percent_method="log")
+```
+
+The two agree to first order and diverge as spreads widen, so the choice matters least where spreads are tightest. Dollar measures are unaffected. Note that realized spread and price impact are divided by the **future** midpoint, as H&J specify, not the contemporaneous one.
+
 `compute_effective_spreads` adds `DollarEffectiveSpread` and `PercentEffectiveSpread`, twice the absolute distance between the trade price and the prevailing midpoint.
 
 It expects the table to carry `lock` and `cross` indicator columns and filters on them, but no function in the package currently produces columns by those names, so you have to add them yourself for now:

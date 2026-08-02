@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Union
 
 import ibis
 
+from .conventions import DEFAULT_PERCENT_METHOD, PercentMethod, check_percent_method
 from .locks_crosses import filter_locks_crosses
 from .timestamps import filter_timestamp
 
@@ -50,18 +51,34 @@ def compute_quote_inforce(
     )
 
 
-def compute_spreads(table: "Table") -> "Table":
-    """Compute spread measures.
+def compute_spreads(
+    table: "Table",
+    percent_method: PercentMethod = DEFAULT_PERCENT_METHOD,
+) -> "Table":
+    """Compute quoted spreads and depth for a quote table.
 
     Args:
-        table (Table): Input table with bid/ask data
+        table (Table): Quote table carrying `best_bid`, `best_ask` and their
+            sizes in shares
+        percent_method (PercentMethod): `"ratio"` for the Holden and Jacobsen
+            definition, the dollar spread over the midpoint, or `"log"` for the
+            log difference
 
     Returns:
-        Table: Table with spread measures added
+        Table: Input table with spread and depth measures added
     """
+    check_percent_method(percent_method)
+
+    dollar = table.best_ask - table.best_bid
+    if percent_method == "ratio":
+        midpoint = (table.best_ask + table.best_bid) / 2
+        percent = dollar / midpoint
+    else:
+        percent = table.best_ask.log() - table.best_bid.log()
+
     return table.mutate(
-        quoted_spread_dollar=table.best_ask - table.best_bid,
-        quoted_spread_percent=table.best_ask.log() - table.best_bid.log(),
+        quoted_spread_dollar=dollar,
+        quoted_spread_percent=percent,
         best_ofr_depth_dollar=table.best_ask * table.best_asksizeshares,
         best_bid_depth_dollar=table.best_bid * table.best_bidsizeshares,
         best_ofr_depth_share=table.best_asksizeshares,
