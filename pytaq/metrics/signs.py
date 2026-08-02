@@ -19,17 +19,28 @@ def sign_tick(
     groupby_col: str | list[str] = "symbol",
     timestamp_col: str = "timestamp",
     price_col: str = "price",
-) -> "Column":
-    """Compute trade direction using tick test.
+    tick_col: str = "tick_dir",
+) -> "Table":
+    """Compute trade direction using the tick test.
+
+    A trade is a buy if the price rose relative to the previous trade and a
+    sell if it fell. On a zero return the direction is carried forward from the
+    last non-zero move. Trades before any price change have no direction and
+    are left null rather than guessed at.
+
+    Returns a table rather than a column: the forward fill has to read a value
+    that is itself computed by a window function, and SQL does not allow window
+    functions to be nested, so the intermediate result must be materialised.
 
     Args:
         table (Table): Input table
-        groupby_col (Union[str, List[str]]): Column(s) to group by
+        groupby_col (str | list[str]): Column(s) to group by
         timestamp_col (str): Timestamp column name
         price_col (str): Price column name
+        tick_col (str): Name of the direction column to add
 
     Returns:
-        Column: Trade direction column
+        Table: Input table with the tick direction column added
     """
     if isinstance(groupby_col, str):
         group = [groupby_col]
@@ -44,29 +55,38 @@ def sign_tick(
     # to mutate(), which ibis rejects.
     window = ibis.window(group_by=group, order_by=timestamp_col)
 
-    # Compute price difference and sign
+    # Direction of the price move against the previous trade. A zero return
+    # carries no information, so it becomes null and is filled in below.
     price_diff = table[price_col] - table[price_col].lag().over(window)
-    dir_col = price_diff.sign()
+    raw_dir = price_diff.sign()
+    raw_dir = float_zero(raw_dir).ifelse(ibis.null(), raw_dir)
 
-    # Handle zero values (set to null)
-    dir_col = float_zero(dir_col).ifelse(ibis.null(), dir_col)
+    table = table.mutate(**{tick_col: raw_dir})
 
-    # Forward fill null values within groups
-    # Use a cumulative max window to propagate last non-null value forward
-    # This works because sign values are -1, 0, 1 or null
-    forward_fill_window = ibis.window(
+    # Forward fill, portably. Counting the non-null directions seen so far
+    # labels each run of nulls with the position of the last real direction, so
+    # taking the max within that label propagates it forward. Leading nulls get
+    # label 0 and stay null, which is what we want: before the first price
+    # change there is nothing to carry forward.
+    #
+    # A cumulative max over the raw directions, which is what this used to do,
+    # is not a forward fill. Values are -1 and +1, so the running max latches to
+    # +1 for the rest of the group as soon as one uptick appears.
+    run_window = ibis.window(
         group_by=group,
         order_by=timestamp_col,
-        preceding=None,  # Unbounded preceding
+        preceding=None,  # unbounded preceding
         following=0,
     )
+    table = table.mutate(_tick_run=table[tick_col].count().over(run_window))
 
-    # Forward fill by taking the max of non-null values seen so far
-    # Note: This assumes positive bias when no previous trades exist
-    # Alternative: use last_value() with ignore_nulls if backend supports it
-    dir_col_filled = dir_col.max().over(forward_fill_window)
-
-    return dir_col_filled
+    return table.mutate(
+        **{
+            tick_col: table[tick_col]
+            .max()
+            .over(ibis.window(group_by=[*group, "_tick_run"]))
+        }
+    ).drop("_tick_run")
 
 
 def sign_lr(
@@ -240,17 +260,21 @@ def sign_trades(
     # Add midpoint column
     result_table = table.mutate(midpoint=(table["best_bid"] + table["best_ask"]) / 2)
 
-    # Compute lock/cross indicator
-    lock_cross = locked_crossed_rows(
-        asks=result_table["best_ask"], bids=result_table["best_bid"]
-    )
-
-    # Compute tick direction
-    tick_dir = sign_tick(
+    # Compute tick direction. This materialises an intermediate column, so it
+    # has to happen before any expression that reads from result_table.
+    tick_col = f"{sign_col_prefix}Tick"
+    result_table = sign_tick(
         table=result_table,
         groupby_col=groupby_col,
         timestamp_col=timestamp_col,
         price_col=price_col,
+        tick_col=tick_col,
+    )
+    tick_dir = result_table[tick_col]
+
+    # Compute lock/cross indicator
+    lock_cross = locked_crossed_rows(
+        asks=result_table["best_ask"], bids=result_table["best_bid"]
     )
 
     # Add sign columns

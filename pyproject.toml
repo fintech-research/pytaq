@@ -105,14 +105,6 @@ unsupported-operator = "ignore"
 # pre-commit hook fails on every commit until they land. Delete each block as
 # its issue closes.
 
-# #8: the tick-test forward fill calls .max() on an expression that is not an
-# aggregate, as part of a construct that also nests window functions.
-[[tool.ty.overrides]]
-include = ["pytaq/metrics/signs.py"]
-
-[tool.ty.overrides.rules]
-unresolved-attribute = "ignore"
-
 # #9: asof_join is called with by= and suffixes=, which do not exist, and
 # without the required on=.
 [[tool.ty.overrides]]
