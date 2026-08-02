@@ -28,7 +28,7 @@ These filters set the offending side to null rather than dropping the row, which
 
 | Step | Holden and Jacobsen | PyTAQ | Status |
 |---|---|---|---|
-| Quote timing, DTAQ | one millisecond lag | contemporaneous (`>=`) | differs, #40 |
+| Quote timing, DTAQ | one millisecond lag | same by default, `lag` parameter | matches |
 | Match direction | most recent prior quote | as-of join, backward | matches |
 | Trades with no prior quote | not applicable | kept, null quote columns | extension |
 

@@ -99,4 +99,10 @@ from pytaq import merge_trades_official_nbbo
 matched = merge_trades_official_nbbo(trades, nbbo)
 ```
 
-An as-of join: each trade takes the most recent quote for its symbol at or before its timestamp, never a later one. A trade before any quote keeps null quote columns rather than being dropped, so trade counts are preserved. Quote columns that collide with trade columns are suffixed `_quote`.
+An as-of join: each trade takes the most recent quote for its symbol in force **one millisecond before** it, never a later one. The lag is what Holden and Jacobsen specify for DTAQ, and it stops a quote that was itself a consequence of the trade counting as the state the trader faced.
+
+```python
+merge_trades_official_nbbo(trades, nbbo, lag=datetime.timedelta(0))  # contemporaneous
+```
+
+The choice is not cosmetic. On AAPL for 2016-12-07, mean effective spread rises about 6% moving from no lag to one millisecond, and trades recorded outside the NBBO go from 2.9% to 4.3%. A trade before any quote keeps null quote columns rather than being dropped, so trade counts are preserved. Quote columns that collide with trade columns are suffixed `_quote`.
