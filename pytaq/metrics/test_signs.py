@@ -2,7 +2,7 @@ import ibis
 import pandas as pd
 import pytest
 
-from .signs import sign_bjz, sign_clnv, sign_emo, sign_lr
+from .signs import sign_bjz, sign_clnv, sign_emo, sign_lr, sign_tick, sign_trades
 
 
 @pytest.fixture
@@ -235,6 +235,85 @@ def test_sign_clnv_basic(con):
     assert result["clnv_sign"].iloc[3] == -1
 
 
-# TODO: Add test_sign_tick_basic and an end-to-end sign_trades test once the
-# forward fill is fixed (#8). The window API is correct now, but the current
-# fill nests a window function inside another, which SQL does not allow.
+def test_sign_tick_forward_fill(con):
+    """The tick direction carries forward across zero returns.
+
+    Regression test: the fill used to be a cumulative max over values in
+    {-1, +1}, which latches to +1 for the rest of the group as soon as one
+    uptick appears, rather than carrying the last real direction forward.
+    """
+    data = pd.DataFrame(
+        {
+            "symbol": pd.Series(["A"] * 5, dtype="string"),
+            "timestamp": pd.to_datetime([f"2020-01-01 10:00:0{i}" for i in range(5)]),
+            # up, down, flat, down
+            "price": [10.0, 11.0, 10.5, 10.5, 10.2],
+        }
+    )
+    table = con.create_table("ticks", data)
+
+    result = sign_tick(table).execute().sort_values("timestamp")
+
+    # No prior trade, so no direction: left null rather than guessed.
+    assert pd.isna(result["tick_dir"].iloc[0])
+    assert result["tick_dir"].iloc[1] == 1
+    assert result["tick_dir"].iloc[2] == -1
+    # Flat tick inherits the previous direction, and must not latch to +1.
+    assert result["tick_dir"].iloc[3] == -1
+    assert result["tick_dir"].iloc[4] == -1
+
+
+def test_sign_tick_is_per_symbol(con):
+    """The fill must not leak across symbols."""
+    data = pd.DataFrame(
+        {
+            "symbol": pd.Series(["A", "A", "B", "B"], dtype="string"),
+            "timestamp": pd.to_datetime(
+                [
+                    "2020-01-01 10:00:00",
+                    "2020-01-01 10:00:01",
+                    "2020-01-01 10:00:00",
+                    "2020-01-01 10:00:01",
+                ]
+            ),
+            "price": [10.0, 11.0, 50.0, 49.0],
+        }
+    )
+    table = con.create_table("ticks_two", data)
+
+    result = sign_tick(table).execute().sort_values(["symbol", "timestamp"])
+
+    # Each symbol starts with no prior trade of its own.
+    assert pd.isna(result["tick_dir"].iloc[0])
+    assert result["tick_dir"].iloc[1] == 1
+    assert pd.isna(result["tick_dir"].iloc[2])
+    assert result["tick_dir"].iloc[3] == -1
+
+
+def test_sign_trades_end_to_end(con):
+    """sign_trades runs and produces every sign column."""
+    data = pd.DataFrame(
+        {
+            "symbol": pd.Series(["A"] * 4, dtype="string"),
+            "timestamp": pd.to_datetime([f"2020-01-01 10:00:0{i}" for i in range(4)]),
+            "price": [10.0, 11.0, 10.5, 10.5],
+            "best_bid": [9.9] * 4,
+            "best_ask": [11.1] * 4,
+            "ex": pd.Series(["N"] * 4, dtype="string"),
+        }
+    )
+    table = con.create_table("trades_signed", data)
+
+    result = sign_trades(table).execute().sort_values("timestamp")
+
+    for suffix in ["Tick", "LR", "EMO", "CLNV", "BJZ"]:
+        assert f"BuySell{suffix}" in result.columns
+    for suffix in ["LR", "EMO", "CLNV"]:
+        assert f"BuySell{suffix}notBJZ" in result.columns
+
+    # Midpoint is 10.5. The first trade is below it, so Lee-Ready calls it a
+    # sell even though the tick test has nothing to go on yet.
+    assert pd.isna(result["BuySellTick"].iloc[0])
+    assert result["BuySellLR"].iloc[0] == -1
+    # A trade exactly at the midpoint falls back to the tick direction.
+    assert result["BuySellLR"].iloc[2] == result["BuySellTick"].iloc[2]
