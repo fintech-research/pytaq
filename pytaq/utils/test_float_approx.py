@@ -27,13 +27,13 @@ def test_float_equal_basic(con):
     result = table.mutate(equal=float_equal(table.val1, table.val2)).execute()
 
     # First row: exactly equal
-    assert result["equal"].iloc[0] == True
+    assert result["equal"].iloc[0]
     # Second row: within tolerance
-    assert result["equal"].iloc[1] == True
+    assert result["equal"].iloc[1]
     # Third row: within tolerance
-    assert result["equal"].iloc[2] == True
+    assert result["equal"].iloc[2]
     # Fourth row: within tolerance
-    assert result["equal"].iloc[3] == True
+    assert result["equal"].iloc[3]
 
 
 def test_float_equal_not_equal(con):
@@ -47,9 +47,9 @@ def test_float_equal_not_equal(con):
     result = table.mutate(equal=float_equal(table.val1, table.val2)).execute()
 
     # All rows should be False (outside tolerance)
-    assert result["equal"].iloc[0] == False
-    assert result["equal"].iloc[1] == False
-    assert result["equal"].iloc[2] == False
+    assert not result["equal"].iloc[0]
+    assert not result["equal"].iloc[1]
+    assert not result["equal"].iloc[2]
 
 
 def test_float_equal_custom_tolerance(con):
@@ -64,13 +64,13 @@ def test_float_equal_custom_tolerance(con):
     result_default = table.mutate(
         equal=float_equal(table.val1, table.val2, atol=DEFAULT_ATOL)
     ).execute()
-    assert result_default["equal"].iloc[0] == False
+    assert not result_default["equal"].iloc[0]
 
     # With larger tolerance (0.1), should be True
     result_custom = table.mutate(
         equal=float_equal(table.val1, table.val2, atol=0.1)
     ).execute()
-    assert result_custom["equal"].iloc[0] == True
+    assert result_custom["equal"].iloc[0]
 
 
 def test_float_zero_basic(con):
@@ -83,13 +83,13 @@ def test_float_zero_basic(con):
     result = table.mutate(is_zero=float_zero(table.val)).execute()
 
     # First three should be True (within tolerance of zero)
-    assert result["is_zero"].iloc[0] == True
-    assert result["is_zero"].iloc[1] == True
-    assert result["is_zero"].iloc[2] == True
+    assert result["is_zero"].iloc[0]
+    assert result["is_zero"].iloc[1]
+    assert result["is_zero"].iloc[2]
     # Last three should be False
-    assert result["is_zero"].iloc[3] == False
-    assert result["is_zero"].iloc[4] == False
-    assert result["is_zero"].iloc[5] == False
+    assert not result["is_zero"].iloc[3]
+    assert not result["is_zero"].iloc[4]
+    assert not result["is_zero"].iloc[5]
 
 
 def test_float_zero_custom_tolerance(con):
@@ -101,12 +101,12 @@ def test_float_zero_custom_tolerance(con):
 
     # With default tolerance, should be False
     result_default = table.mutate(is_zero=float_zero(table.val)).execute()
-    assert result_default["is_zero"].iloc[0] == False
+    assert not result_default["is_zero"].iloc[0]
 
     # With larger tolerance, should be True
     result_custom = table.mutate(is_zero=float_zero(table.val, atol=0.1)).execute()
-    assert result_custom["is_zero"].iloc[0] == True
-    assert result_custom["is_zero"].iloc[1] == True
+    assert result_custom["is_zero"].iloc[0]
+    assert result_custom["is_zero"].iloc[1]
 
 
 def test_correct_float_approx_basic(con):
@@ -165,8 +165,10 @@ def test_float_equal_with_nan(con):
     result = table.mutate(equal=float_equal(table.val1, table.val2)).execute()
 
     # NaN == NaN should be True (because equal_nan=True)
-    assert result["equal"].iloc[0] == True
+    assert result["equal"].iloc[0]
     # 1.0 == 1.0 should be True
-    assert result["equal"].iloc[1] == True
+    assert result["equal"].iloc[1]
     # NaN != 2.0 should be False (or null)
-    assert result["equal"].iloc[2] == False or pd.isna(result["equal"].iloc[2])
+    # Test isna first: `not pd.NA` raises, so the order here matters.
+    nan_vs_number = result["equal"].iloc[2]
+    assert pd.isna(nan_vs_number) or not nan_vs_number

@@ -52,7 +52,7 @@ eff_spreads = compute_effective_spread(
     table=trades_with_quotes,
     price_col="price",
     midpoint_col="midpoint",
-    sign_col="trade_sign"
+    sign_col="trade_sign",
 )
 
 # View results
@@ -77,7 +77,7 @@ rs_dollar = dollar_realized_spread(
     table=trades_with_midpoints,
     price_col="price",
     midpoint_next_col="midpoint_5min",  # 5-minute ahead
-    sign_col="trade_sign"
+    sign_col="trade_sign",
 )
 
 # Compute basis points realized spread
@@ -86,7 +86,7 @@ rs_bps = bps_realized_spread(
     price_col="price",
     midpoint_col="midpoint",
     midpoint_next_col="midpoint_5min",
-    sign_col="trade_sign"
+    sign_col="trade_sign",
 )
 ```
 
@@ -104,7 +104,7 @@ pi_dollar = dollar_price_impact(
     table=trades_with_midpoints,
     midpoint_col="midpoint",
     midpoint_next_col="midpoint_5min",
-    sign_col="trade_sign"
+    sign_col="trade_sign",
 )
 
 # View results
@@ -124,7 +124,7 @@ pi_bps = bps_price_impact(
     table=trades_with_midpoints,
     midpoint_col="midpoint",
     midpoint_next_col="midpoint_5min",
-    sign_col="trade_sign"
+    sign_col="trade_sign",
 )
 ```
 
@@ -143,8 +143,7 @@ trades_with_midpoint = merge_trades_quotes(trades, quotes)
 # Classify trades
 trades_signed = trades_with_midpoint.mutate(
     trade_sign=sign_lr(
-        price=trades_with_midpoint["price"],
-        midpoint=trades_with_midpoint["midpoint"]
+        price=trades_with_midpoint["price"], midpoint=trades_with_midpoint["midpoint"]
     )
 )
 
@@ -166,7 +165,7 @@ trades_signed = trades.mutate(
     trade_sign=sign_emo(
         price=trades["price"],
         midpoint=trades["midpoint"],
-        buy_sell=trades["buy_sell_indicator"]  # Exchange-provided indicator
+        buy_sell=trades["buy_sell_indicator"],  # Exchange-provided indicator
     )
 )
 ```
@@ -183,7 +182,7 @@ trades_signed = trades.mutate(
     trade_sign=sign_clnv(
         price=trades["price"],
         midpoint=trades["midpoint"],
-        buy_sell=trades["buy_sell_indicator"]
+        buy_sell=trades["buy_sell_indicator"],
     )
 )
 ```
@@ -199,14 +198,12 @@ from pytaq.metrics.signs import sign_bjz
 trades_signed = trades.mutate(
     trade_sign=sign_bjz(
         price=trades["price"],
-        ex=trades["exchange"]  # 'D' for off-exchange
+        ex=trades["exchange"],  # 'D' for off-exchange
     )
 )
 
 # View off-exchange classifications
-result = trades_signed.filter(
-    trades_signed["exchange"] == "D"
-).execute()
+result = trades_signed.filter(trades_signed["exchange"] == "D").execute()
 print(result[["symbol", "price", "exchange", "trade_sign"]])
 ```
 
@@ -252,7 +249,7 @@ twa_spread = time_weighted_average(
     table=quotes,
     value_col="quoted_spread",
     time_col="timestamp",
-    group_cols=["symbol", "date"]
+    group_cols=["symbol", "date"],
 )
 
 # View results
@@ -267,10 +264,7 @@ from pytaq.metrics.averages import volume_weighted_average
 
 # Compute VWAP
 vwap = volume_weighted_average(
-    table=trades,
-    value_col="price",
-    weight_col="volume",
-    group_cols=["symbol", "date"]
+    table=trades, value_col="price", weight_col="volume", group_cols=["symbol", "date"]
 )
 
 # View results
@@ -302,9 +296,7 @@ quotes = extract_quotes(con, "/path/to/data", date_val, symbols)
 trades = extract_trades(con, "/path/to/data", date_val, symbols)
 
 # 2. Clean data
-clean_quotes = clean_quote_table(
-    quotes, keep_qu_cond=["A"], max_spread=Decimal("5.0")
-)
+clean_quotes = clean_quote_table(quotes, keep_qu_cond=["A"], max_spread=Decimal("5.0"))
 clean_trades = clean_trade_table(
     trades, keep_tr_scond=["@"], remove_abnormal_sales=True
 )
@@ -317,17 +309,14 @@ merged = clean_trades.join(
     spreads,
     predicates=[
         clean_trades["symbol"] == spreads["symbol"],
-        clean_trades["timestamp"] == spreads["timestamp"]
+        clean_trades["timestamp"] == spreads["timestamp"],
     ],
-    how="left"
+    how="left",
 )
 
 # 5. Classify trades
 signed_trades = merged.mutate(
-    trade_sign=sign_lr(
-        price=merged["price"],
-        midpoint=merged["midpoint"]
-    )
+    trade_sign=sign_lr(price=merged["price"], midpoint=merged["midpoint"])
 )
 
 # 6. Compute realized spreads (requires future midpoints)
@@ -336,7 +325,7 @@ rs = dollar_realized_spread(
     table=signed_trades,
     price_col="price",
     midpoint_next_col="midpoint_5min",
-    sign_col="trade_sign"
+    sign_col="trade_sign",
 )
 
 # 7. Execute and analyze
@@ -344,10 +333,11 @@ result = rs.execute()
 print(result[["symbol", "timestamp", "price", "trade_sign", "rs_dollar"]])
 
 # 8. Aggregate by symbol
-daily_metrics = result.groupby("symbol").agg({
-    "rs_dollar": "mean",
-    "price": "count"
-}).rename(columns={"price": "num_trades"})
+daily_metrics = (
+    result.groupby("symbol")
+    .agg({"rs_dollar": "mean", "price": "count"})
+    .rename(columns={"price": "num_trades"})
+)
 print(daily_metrics)
 ```
 
@@ -359,12 +349,14 @@ print(daily_metrics)
 from datetime import time
 
 # Compute spreads by hour
-hourly_spreads = spreads.mutate(
-    hour=spreads["timestamp"].hour()
-).group_by(["symbol", "hour"]).aggregate(
-    avg_spread=spreads["quoted_spread_dollar"].mean(),
-    min_spread=spreads["quoted_spread_dollar"].min(),
-    max_spread=spreads["quoted_spread_dollar"].max()
+hourly_spreads = (
+    spreads.mutate(hour=spreads["timestamp"].hour())
+    .group_by(["symbol", "hour"])
+    .aggregate(
+        avg_spread=spreads["quoted_spread_dollar"].mean(),
+        min_spread=spreads["quoted_spread_dollar"].min(),
+        max_spread=spreads["quoted_spread_dollar"].max(),
+    )
 )
 
 result = hourly_spreads.order_by("hour").execute()
@@ -379,7 +371,7 @@ symbol_metrics = signed_trades.group_by("symbol").aggregate(
     avg_price=signed_trades["price"].mean(),
     avg_spread=signed_trades["quoted_spread_dollar"].mean(),
     num_trades=signed_trades["symbol"].count(),
-    pct_buys=(signed_trades["trade_sign"] == 1).sum() / signed_trades["symbol"].count()
+    pct_buys=(signed_trades["trade_sign"] == 1).sum() / signed_trades["symbol"].count(),
 )
 
 result = symbol_metrics.order_by(ibis.desc("num_trades")).execute()
@@ -391,11 +383,13 @@ print(result)
 ```python
 # Compute 5-minute rolling average spread
 rolling_spread = quotes.mutate(
-    rolling_avg_spread=quotes["quoted_spread_dollar"].mean().over(
+    rolling_avg_spread=quotes["quoted_spread_dollar"]
+    .mean()
+    .over(
         ibis.window(
             preceding=300,  # 5 minutes in seconds
             following=0,
-            order_by="timestamp"
+            order_by="timestamp",
         )
     )
 )
@@ -408,8 +402,7 @@ rolling_spread = quotes.mutate(
 ```python
 # Filter to regular hours before metrics
 regular_hours = clean_trades.filter(
-    (clean_trades["time_m"] >= time(9, 30)) &
-    (clean_trades["time_m"] <= time(16, 0))
+    (clean_trades["time_m"] >= time(9, 30)) & (clean_trades["time_m"] <= time(16, 0))
 )
 
 # Then compute metrics on filtered data
@@ -422,11 +415,9 @@ signed_trades = regular_hours.mutate(
 
 ```python
 # Don't compute all metrics if only need quoted spreads
-spreads_only = compute_spreads(clean_quotes).select([
-    "symbol",
-    "timestamp",
-    "quoted_spread_dollar"
-])
+spreads_only = compute_spreads(clean_quotes).select(
+    ["symbol", "timestamp", "quoted_spread_dollar"]
+)
 ```
 
 ### 3. Use Appropriate Aggregation
@@ -435,7 +426,7 @@ spreads_only = compute_spreads(clean_quotes).select([
 # Daily aggregates instead of tick-by-tick
 daily_spreads = spreads.group_by(["symbol", "date"]).aggregate(
     mean_spread=spreads["quoted_spread_dollar"].mean(),
-    median_spread=spreads["quoted_spread_dollar"].approx_median()
+    median_spread=spreads["quoted_spread_dollar"].approx_median(),
 )
 ```
 

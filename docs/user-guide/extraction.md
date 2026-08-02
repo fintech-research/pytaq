@@ -30,7 +30,7 @@ quotes = extract_quotes(
     con=con,
     source_path="/path/to/taq/data",
     date=date(2023, 1, 15),
-    symbols=["AAPL", "MSFT"]
+    symbols=["AAPL", "MSFT"],
 )
 
 # View the data
@@ -47,7 +47,7 @@ trades = extract_trades(
     con=con,
     source_path="/path/to/taq/data",
     date=date(2023, 1, 15),
-    symbols=["AAPL", "MSFT"]
+    symbols=["AAPL", "MSFT"],
 )
 ```
 
@@ -61,7 +61,7 @@ nbbo = extract_nbbo(
     con=con,
     source_path="/path/to/taq/data",
     date=date(2023, 1, 15),
-    symbols=["AAPL", "MSFT"]
+    symbols=["AAPL", "MSFT"],
 )
 ```
 
@@ -75,7 +75,7 @@ official_nbbo = extract_official_nbbo(
     con=con,
     source_path="/path/to/taq/data",
     date=date(2023, 1, 15),
-    symbols=["AAPL", "MSFT"]
+    symbols=["AAPL", "MSFT"],
 )
 ```
 
@@ -89,7 +89,7 @@ aapl_quotes = extract_quotes(
     con=con,
     source_path="/path/to/data",
     date=date(2023, 1, 15),
-    symbols="AAPL"  # Single symbol as string
+    symbols="AAPL",  # Single symbol as string
 )
 ```
 
@@ -101,7 +101,7 @@ quotes = extract_quotes(
     con=con,
     source_path="/path/to/data",
     date=date(2023, 1, 15),
-    symbols=["AAPL", "MSFT", "GOOGL"]  # List of symbols
+    symbols=["AAPL", "MSFT", "GOOGL"],  # List of symbols
 )
 ```
 
@@ -115,7 +115,7 @@ quotes = extract_quotes(
     con=con,
     source_path="/path/to/data",
     date=date(2023, 1, 15),
-    symbols=["BRK A", "BRK B"]  # Space-separated suffix
+    symbols=["BRK A", "BRK B"],  # Space-separated suffix
 )
 ```
 
@@ -125,11 +125,7 @@ quotes = extract_quotes(
 
 ```python
 # Extract for a specific date
-quotes = extract_quotes(
-    con=con,
-    source_path="/path/to/data",
-    date=date(2023, 1, 15)
-)
+quotes = extract_quotes(con=con, source_path="/path/to/data", date=date(2023, 1, 15))
 ```
 
 ### Date Ranges
@@ -146,10 +142,7 @@ current_date = start_date
 
 while current_date <= end_date:
     daily_quotes = extract_quotes(
-        con=con,
-        source_path="/path/to/data",
-        date=current_date,
-        symbols=["AAPL"]
+        con=con, source_path="/path/to/data", date=current_date, symbols=["AAPL"]
     )
     all_quotes.append(daily_quotes)
     current_date += timedelta(days=1)
@@ -167,16 +160,12 @@ PyTAQ works efficiently with Parquet files:
 ```python
 # Read from local Parquet files
 quotes = extract_quotes(
-    con=con,
-    source_path="/data/taq/parquet",
-    date=date(2023, 1, 15)
+    con=con, source_path="/data/taq/parquet", date=date(2023, 1, 15)
 )
 
 # Read from S3 or cloud storage
 quotes = extract_quotes(
-    con=con,
-    source_path="s3://bucket/taq/data",
-    date=date(2023, 1, 15)
+    con=con, source_path="s3://bucket/taq/data", date=date(2023, 1, 15)
 )
 ```
 
@@ -190,18 +179,12 @@ import ibis
 
 # Connect to PostgreSQL
 con = ibis.postgres.connect(
-    host="localhost",
-    database="taq",
-    user="username",
-    password="password"
+    host="localhost", database="taq", user="username", password="password"
 )
 
 # Load quotes from database
 quotes = load_from_postgres(
-    con=con,
-    table_name="quotes",
-    date=date(2023, 1, 15),
-    symbols=["AAPL", "MSFT"]
+    con=con, table_name="quotes", date=date(2023, 1, 15), symbols=["AAPL", "MSFT"]
 )
 ```
 
@@ -219,7 +202,7 @@ quotes_with_timestamp = merge_date_time(
     table=quotes,
     date_col="date",
     time_col="time_m",
-    timestamp_col="timestamp"  # New column name
+    timestamp_col="timestamp",  # New column name
 )
 ```
 
@@ -231,10 +214,7 @@ from pytaq.metrics.timestamps import filter_timestamp
 
 # Filter to regular trading hours (9:30 AM - 4:00 PM)
 regular_hours = filter_timestamp(
-    table=quotes,
-    timestamp="timestamp",
-    start_time=time(9, 30),
-    end_time=time(16, 0)
+    table=quotes, timestamp="timestamp", start_time=time(9, 30), end_time=time(16, 0)
 )
 ```
 
@@ -285,25 +265,18 @@ quotes = extract_quotes(
     con=con,
     source_path="/path/to/data",
     date=date(2023, 1, 15),
-    symbols=["AAPL"]  # Only load needed symbols
+    symbols=["AAPL"],  # Only load needed symbols
 )
 
 # Apply additional filters before execution
-filtered = quotes.filter(
-    (quotes["bid"] > 0) & (quotes["ask"] > 0)
-)
+filtered = quotes.filter((quotes["bid"] > 0) & (quotes["ask"] > 0))
 ```
 
 ### 3. Select Only Needed Columns
 
 ```python
 # Select minimal columns
-minimal = quotes.select([
-    "symbol",
-    "timestamp",
-    "bid",
-    "ask"
-])
+minimal = quotes.select(["symbol", "timestamp", "bid", "ask"])
 ```
 
 ### 4. Use Lazy Evaluation
@@ -328,17 +301,14 @@ from pytaq.cleaning.quotes import clean_quote_table
 
 # Extract raw quotes
 raw_quotes = extract_quotes(
-    con=con,
-    source_path="/path/to/data",
-    date=date(2023, 1, 15),
-    symbols=["AAPL"]
+    con=con, source_path="/path/to/data", date=date(2023, 1, 15), symbols=["AAPL"]
 )
 
 # Clean the quotes
 clean_quotes = clean_quote_table(
     table=raw_quotes,
     keep_qu_cond=["A", "B"],  # Keep only valid conditions
-    max_spread=5.0
+    max_spread=5.0,
 )
 ```
 
@@ -357,9 +327,9 @@ merged = trades.join(
     quotes,
     predicates=[
         trades["symbol"] == quotes["symbol"],
-        trades["timestamp"] == quotes["timestamp"]
+        trades["timestamp"] == quotes["timestamp"],
     ],
-    how="left"
+    how="left",
 )
 ```
 

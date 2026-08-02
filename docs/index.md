@@ -40,9 +40,7 @@ clean_trades_data = clean_trades(trades)
 
 # Compute effective spreads
 spreads = compute_effective_spreads(
-    clean_trades_data,
-    timestamp_col="timestamp",
-    price_col="price"
+    clean_trades_data, timestamp_col="timestamp", price_col="price"
 )
 
 # Execute and get results

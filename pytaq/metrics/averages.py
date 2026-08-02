@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING, Iterable, List, Tuple, Union
+from collections.abc import Iterable
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ibis.expr.types import Table
@@ -8,7 +9,7 @@ def compute_averages(
     table: "Table",
     cols: Iterable[str],
     group: str = "symbol",
-    weights: Iterable[Tuple[Union[str, None], str]] = [
+    weights: Iterable[tuple[str | None, str]] = [
         (None, ""),
     ],
 ) -> "Table":
@@ -72,7 +73,7 @@ def compute_averages_ave_sw_dw(
         Table: Table of the averages
     """
 
-    weights: List[Tuple[Union[str, None], str]] = []
+    weights: list[tuple[str | None, str]] = []
     if simple:
         weights.append((None, "_Ave"))
     if dollar_weighted:

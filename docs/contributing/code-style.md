@@ -2,42 +2,55 @@
 
 PyTAQ follows modern Python best practices and uses automated tools to maintain code quality.
 
-## Code Formatting
+## Pre-commit
 
-### Ruff
+There is no CI at the moment, so pre-commit is the gate. Install the hooks once after cloning:
 
-PyTAQ uses [Ruff](https://github.com/astral-sh/ruff) for linting and formatting - a fast, all-in-one Python linter.
+```bash
+uv sync
+uv run pre-commit install
+```
+
+From then on the hooks run on every commit. To run them over the whole repository:
+
+```bash
+uv run pre-commit run --all-files
+```
+
+The hooks are Ruff (lint and format), `ty`, and a few whitespace and file checks. They are configured in `.pre-commit-config.yaml`.
+
+## Ruff
+
+PyTAQ uses [Ruff](https://github.com/astral-sh/ruff) for both linting and formatting.
 
 ```bash
 # Format code
-ruff format
+uv run ruff format
 
 # Check for issues
-ruff check
+uv run ruff check
 
-# Auto-fix issues
-ruff check --fix
+# Auto-fix what can be fixed
+uv run ruff check --fix
 ```
 
-### Configuration
+Ruff is configured under `[tool.ruff]` in `pyproject.toml`. The enabled rule families are pycodestyle, pyflakes, isort, pyupgrade, bugbear, simplify, comprehensions, pep8-naming, pytest-style and Ruff's own rules.
 
-Ruff is configured in `pyproject.toml`:
+Note that `ruff format` also formats Python code blocks inside the Markdown files under `docs/`, so documentation examples stay consistent with the source.
 
-```toml
-[tool.ruff]
-line-length = 88
-target-version = "py39"
+## Type checking
 
-[tool.ruff.lint]
-select = [
-    "E",   # pycodestyle errors
-    "W",   # pycodestyle warnings
-    "F",   # pyflakes
-    "I",   # isort
-    "N",   # pep8-naming
-    "UP",  # pyupgrade
-]
+PyTAQ uses [ty](https://github.com/astral-sh/ty):
+
+```bash
+uv run ty check
 ```
+
+`ty` is configured under `[tool.ty]` in `pyproject.toml`. A few of its rules are deliberately switched off, and the reason is worth knowing before you turn them back on: nearly everything in this codebase is an Ibis expression, and Ibis builds its operators and column accessors dynamically. `ty` cannot follow that, so `invalid-argument-type`, `invalid-return-type` and `unsupported-operator` report noise rather than defects here.
+
+What `ty` is good at on this codebase is call signatures and imports, and those rules are left on. They earn their keep: `ty` independently caught two real bugs that the test suite missed.
+
+`pyproject.toml` also carries some narrowly scoped, temporary suppressions, each commented with the issue number that will remove it. They exist so the pre-commit hook stays usable while those bugs are still open. If you close one of those issues, delete its block.
 
 ## Python Style Guidelines
 
@@ -56,18 +69,22 @@ select = [
 DEFAULT_CLNV_THRESHOLD = 0.3
 HJ_MAX_SPREAD = 5.0
 
+
 # Functions and variables - snake_case
 def compute_effective_spreads(table, price_col):
     midpoint_value = (bid + ask) / 2
     return result
 
+
 # Classes - PascalCase
 class QuoteProcessor:
     pass
 
+
 # Private/internal - prefix with underscore
 def _internal_helper():
     pass
+
 
 _private_constant = 10
 ```
@@ -199,10 +216,12 @@ DEFAULT_THRESHOLD = 0.5
 if TYPE_CHECKING:
     from ibis.expr.types import Table
 
+
 # Functions (in logical order)
 def public_function():
     """Public API function."""
     ...
+
 
 def _internal_function():
     """Internal helper function."""
@@ -220,11 +239,9 @@ def _internal_function():
 def filter_by_time(table, start_time, end_time):
     """Filter table by time range."""
     return table.filter(
-        table.time_m.between(
-            _time_to_seconds(start_time),
-            _time_to_seconds(end_time)
-        )
+        table.time_m.between(_time_to_seconds(start_time), _time_to_seconds(end_time))
     )
+
 
 def _time_to_seconds(t):
     """Convert time to seconds since midnight."""
@@ -238,8 +255,7 @@ def _time_to_seconds(t):
 ```python
 # Good - use Ibis expressions
 result = table.mutate(
-    spread=table.ask - table.bid,
-    midpoint=(table.ask + table.bid) / 2
+    spread=table.ask - table.bid, midpoint=(table.ask + table.bid) / 2
 )
 
 # Avoid - don't materialize unnecessarily
@@ -252,8 +268,7 @@ data["spread"] = data["ask"] - data["bid"]
 ```python
 # Good - chain operations, execute once
 result = (
-    table
-    .filter(table.price > 0)
+    table.filter(table.price > 0)
     .mutate(log_price=table.price.log())
     .group_by("symbol")
     .agg(avg_log_price=table.log_price.mean())
@@ -298,8 +313,7 @@ def function_with_validation(table, column_name):
 ```python
 # Good - helpful error message
 raise ValueError(
-    f"Invalid exchange code: {ex}. "
-    f"Expected one of: {', '.join(VALID_EXCHANGES)}"
+    f"Invalid exchange code: {ex}. Expected one of: {', '.join(VALID_EXCHANGES)}"
 )
 
 # Bad - unclear error
@@ -315,6 +329,7 @@ raise ValueError("Invalid exchange")
 def test_bjz_classifies_buy_correctly():
     """Test BJZ correctly identifies buy trades."""
     ...
+
 
 def test_filter_handles_empty_table():
     """Test filter returns empty table for empty input."""

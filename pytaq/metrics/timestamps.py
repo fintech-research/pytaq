@@ -1,7 +1,8 @@
 from datetime import time
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Union
 
 import ibis
+import ibis.expr.types as ir
 
 if TYPE_CHECKING:
     from ibis.expr.types import Column, Table
@@ -10,8 +11,8 @@ if TYPE_CHECKING:
 def filter_timestamp(
     table: "Table",
     timestamp: Union[str, "Column"],
-    start_time: Optional[time] = None,
-    end_time: Optional[time] = None,
+    start_time: time | None = None,
+    end_time: time | None = None,
 ) -> "Table":
     """Filters a table based on timestamp
 
@@ -26,7 +27,7 @@ def filter_timestamp(
     """
     if isinstance(timestamp, str):
         timestamp_col = table[timestamp]
-    elif isinstance(timestamp, ibis.expr.types.Column):
+    elif isinstance(timestamp, ir.Column):
         timestamp_col = timestamp
     else:
         raise ValueError("timestamp should be an Ibis Column or a column name.")

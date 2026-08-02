@@ -32,7 +32,7 @@ def merge_quotes_nbbo(
                     order_by=[ibis.desc("qu_seqnum")], group_by=["symbol", "timestamp"]
                 )
             )
-            .filter(lambda x: x.row_num == 1)
+            .filter(ibis._.row_num == 1)
             .drop("row_num")
         )
 

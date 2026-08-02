@@ -87,10 +87,12 @@ def con():
 def test_function_basic(con):
     """Test basic functionality of function."""
     # Arrange - Set up test data
-    data = pd.DataFrame({
-        "column1": [1, 2, 3],
-        "column2": [4, 5, 6],
-    })
+    data = pd.DataFrame(
+        {
+            "column1": [1, 2, 3],
+            "column2": [4, 5, 6],
+        }
+    )
     table = con.create_table("test", data)
 
     # Act - Execute the function
@@ -107,11 +109,13 @@ def test_function_basic(con):
 
 ```python
 # Good - explicit types
-data = pd.DataFrame({
-    "date": [datetime.date(2023, 1, 15)],
-    "sym_suffix": pd.Series([None], dtype="string"),
-    "price": [100.50],
-})
+data = pd.DataFrame(
+    {
+        "date": [datetime.date(2023, 1, 15)],
+        "sym_suffix": pd.Series([None], dtype="string"),
+        "price": [100.50],
+    }
+)
 ```
 
 2. **Convert date integers** to date objects:
@@ -136,16 +140,16 @@ data = pd.DataFrame({
 ```python
 def test_ibis_expression(con):
     """Test Ibis column operations."""
-    data = pd.DataFrame({
-        "price": [100.0, 200.0],
-        "quantity": [10, 20],
-    })
+    data = pd.DataFrame(
+        {
+            "price": [100.0, 200.0],
+            "quantity": [10, 20],
+        }
+    )
     table = con.create_table("test", data)
 
     # Test expression
-    result = table.mutate(
-        total=table.price * table.quantity
-    ).execute()
+    result = table.mutate(total=table.price * table.quantity).execute()
 
     assert result["total"].iloc[0] == 1000.0
     assert result["total"].iloc[1] == 4000.0
@@ -158,9 +162,11 @@ Always test edge cases:
 ```python
 def test_function_with_nulls(con):
     """Test function handles null values correctly."""
-    data = pd.DataFrame({
-        "value": [1.0, None, 3.0],
-    })
+    data = pd.DataFrame(
+        {
+            "value": [1.0, None, 3.0],
+        }
+    )
     table = con.create_table("test", data)
 
     result = function_to_test(table).execute()
@@ -192,6 +198,7 @@ assert abs(result["average"].iloc[0] - 100.5) < 1e-6
 
 # Using numpy testing
 import numpy.testing as npt
+
 npt.assert_almost_equal(result["value"].iloc[0], 100.5, decimal=6)
 ```
 
@@ -219,6 +226,7 @@ assert result["flag"].iloc[0]
 def test_sign_bjz_nasdaq_buy():
     """Test BJZ sign classification for NASDAQ buy trades."""
 
+
 # Less descriptive ❌
 def test_bjz():
     """Test BJZ."""
@@ -245,11 +253,13 @@ class TestQuoteCleaning:
 @pytest.fixture
 def sample_quotes(con):
     """Create sample quote data for testing."""
-    data = pd.DataFrame({
-        "symbol": ["AAPL", "MSFT"],
-        "bid": [100.0, 200.0],
-        "ask": [100.5, 200.5],
-    })
+    data = pd.DataFrame(
+        {
+            "symbol": ["AAPL", "MSFT"],
+            "bid": [100.0, 200.0],
+            "ask": [100.5, 200.5],
+        }
+    )
     return con.create_table("quotes", data)
 
 
@@ -311,10 +321,12 @@ Tests run automatically on:
 ```python
 def test_merge_symbol(con):
     """Test symbol root and suffix merging."""
-    data = pd.DataFrame({
-        "sym_root": ["BRK", "AAPL"],
-        "sym_suffix": ["A", None],
-    })
+    data = pd.DataFrame(
+        {
+            "sym_root": ["BRK", "AAPL"],
+            "sym_suffix": ["A", None],
+        }
+    )
     table = con.create_table("test", data)
 
     result = merge_symbol(table).execute()
@@ -328,9 +340,11 @@ def test_merge_symbol(con):
 ```python
 def test_filter_by_condition(con):
     """Test conditional filtering."""
-    data = pd.DataFrame({
-        "value": [1, 2, 3, 4, 5],
-    })
+    data = pd.DataFrame(
+        {
+            "value": [1, 2, 3, 4, 5],
+        }
+    )
     table = con.create_table("test", data)
 
     result = table.filter(table.value > 2).execute()

@@ -167,7 +167,9 @@ uv sync
 
 ```python
 # Add to your code for interactive debugging
-import IPython; IPython.embed()
+import IPython
+
+IPython.embed()
 ```
 
 ### Inspecting Ibis Expressions

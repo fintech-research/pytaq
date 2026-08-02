@@ -72,6 +72,7 @@ dev = [
     "ibis-framework[duckdb,polars,postgres]>=12,<13",
     "psycopg[binary]>=3.2",
     "mkdocs>=1.6.1",
+    "pre-commit>=4.5.0",
     "mkdocs-material>=9.7.7",
     "mkdocstrings>=0.30.1",
     "mkdocstrings-python>=2.0.5",
@@ -83,9 +84,72 @@ dev = [
     "ty>=0.0.65",
 ]
 
+[tool.ty.src]
+exclude = [".venv", "site", "dist"]
+
+# Almost everything here is an Ibis expression. Ibis builds its operators and
+# column accessors dynamically, so ty (still 0.0.x) cannot follow the expression
+# algebra: it reports `NumericValue <= float` as unsupported, and every function
+# returning a derived expression as a return-type mismatch. Those rules produce
+# only noise on this codebase.
+#
+# What ty is genuinely good at here is call signatures and imports, and that is
+# what found real bugs: it independently flagged ibis.window(partition_by=) and
+# the asof_join call filed as #7 and #9. Those stay on.
+[tool.ty.rules]
+invalid-argument-type = "ignore"
+invalid-return-type = "ignore"
+unsupported-operator = "ignore"
+
+# Scoped, temporary suppressions for bugs already filed. Without these the
+# pre-commit hook fails on every commit until they land. Delete each block as
+# its issue closes.
+
+# #5: the legacy raw-SQL extraction path imports the undeclared `wrds` package.
+# The whole directory goes away.
+[[tool.ty.overrides]]
+include = ["pytaq/extract/**"]
+
+[tool.ty.overrides.rules]
+unresolved-import = "ignore"
+unknown-argument = "ignore"
+
+# #7: ibis.window(partition_by=) should be group_by=. unresolved-attribute also
+# covers the `.total_seconds().abs()` call at quoted_spreads.py:54, in the same
+# broken function.
+[[tool.ty.overrides]]
+include = ["pytaq/metrics/signs.py", "pytaq/metrics/quoted_spreads.py"]
+
+[tool.ty.overrides.rules]
+unknown-argument = "ignore"
+unresolved-attribute = "ignore"
+
+# #9: asof_join is called with by= and suffixes=, which do not exist, and
+# without the required on=.
+[[tool.ty.overrides]]
+include = ["pytaq/cleaning/merge_trades_official_nbbo.py"]
+
+[tool.ty.overrides.rules]
+unknown-argument = "ignore"
+missing-argument = "ignore"
+
 [tool.ruff.format]
 line-ending = "lf"
 docstring-code-format = true
 
 [tool.ruff.lint]
-select = ["E4", "E7", "E9", "F", "I"]
+select = [
+    "E4",   # pycodestyle: imports
+    "E7",   # pycodestyle: statements
+    "E9",   # pycodestyle: runtime errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "SIM",  # flake8-simplify
+    "C4",   # flake8-comprehensions
+    "N",    # pep8-naming
+    "PT",   # flake8-pytest-style
+    "RUF",  # ruff-specific
+]

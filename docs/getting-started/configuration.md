@@ -8,11 +8,11 @@ PyTAQ includes sensible defaults from the Holden-Jacobsen (HJ) paper:
 
 ```python
 from pytaq.hj_defaults import (
-    HJ_MAX_SPREAD,           # Maximum allowed spread: $5.00
-    HJ_START_TIME_QUOTES,    # Quote start time: 09:30:00
-    HJ_END_TIME_QUOTES,      # Quote end time: 16:00:00
-    HJ_START_TIME_TRADES,    # Trade start time: 09:30:00
-    HJ_END_TIME_TRADES,      # Trade end time: 16:00:00
+    HJ_MAX_SPREAD,  # Maximum allowed spread: $5.00
+    HJ_START_TIME_QUOTES,  # Quote start time: 09:30:00
+    HJ_END_TIME_QUOTES,  # Quote end time: 16:00:00
+    HJ_START_TIME_TRADES,  # Trade start time: 09:30:00
+    HJ_END_TIME_TRADES,  # Trade end time: 16:00:00
 )
 ```
 
@@ -33,9 +33,7 @@ con = ibis.connect("duckdb://path/to/taq.db")
 
 # With configuration options
 con = ibis.connect(
-    "duckdb://taq.db",
-    read_only=False,
-    config={"threads": 4, "memory_limit": "4GB"}
+    "duckdb://taq.db", read_only=False, config={"threads": 4, "memory_limit": "4GB"}
 )
 ```
 
@@ -46,14 +44,11 @@ For production deployments:
 ```python
 import ibis
 
-con = ibis.connect(
-    "postgresql://user:password@localhost:5432/taq_database"
-)
+con = ibis.connect("postgresql://user:password@localhost:5432/taq_database")
 
 # With connection pooling
 con = ibis.connect(
-    "postgresql://user:password@localhost:5432/taq_database",
-    pool_size=10
+    "postgresql://user:password@localhost:5432/taq_database", pool_size=10
 )
 ```
 
@@ -79,18 +74,14 @@ clean_quotes = clean_quote_table(
     quotes,
     # Quote condition filters
     keep_qu_cond=["A", "B", "H", "O", "R", "W"],
-
     # Remove cancelled quotes
     filter_cancelled=True,
-
     # Remove locked/crossed markets
     filter_crossed=True,
-
     # Maximum spread filter
     max_spread=Decimal("5.0"),
-
     # Keep only NBBO quotes
-    nbbo_only=True
+    nbbo_only=True,
 )
 ```
 
@@ -104,13 +95,11 @@ clean_trades_data = clean_trades(
     trades,
     # Exclude trade corrections
     exclude_corrections=True,
-
     # Filter for positive prices only
     price_positive_only=True,
-
     # Time range filters
     start_time=time(9, 30, 0),
-    end_time=time(16, 0, 0)
+    end_time=time(16, 0, 0),
 )
 ```
 
@@ -128,7 +117,7 @@ sign = sign_clnv(
     best_ask=trades.best_ask,
     tick_dir=trades.tick_direction,
     lock_cross=trades.locked,
-    threshold=0.3  # Default threshold
+    threshold=0.3,  # Default threshold
 )
 ```
 
@@ -165,10 +154,9 @@ for symbol in symbols:
 ```python
 # Use lazy evaluation
 result = (
-    table
-    .filter(...)  # Applied on database
+    table.filter(...)  # Applied on database
     .mutate(...)  # Applied on database
-    .execute()    # Only now data is materialized
+    .execute()  # Only now data is materialized
 )
 
 # For large results, iterate in chunks
@@ -183,11 +171,10 @@ import logging
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 
-logger = logging.getLogger('pytaq')
+logger = logging.getLogger("pytaq")
 logger.setLevel(logging.DEBUG)
 ```
 

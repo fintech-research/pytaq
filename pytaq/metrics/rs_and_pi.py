@@ -1,11 +1,10 @@
+from collections.abc import Iterable
 from datetime import timedelta
-from typing import TYPE_CHECKING, Iterable, Tuple
-
-import ibis
-from .locks_crosses import filter_locks_crosses
-from .signs import BASE_SIGNS, RETAIL_SIGNS
+from typing import TYPE_CHECKING
 
 from ..utils.float_approx import correct_float_approx
+from .locks_crosses import filter_locks_crosses
+from .signs import BASE_SIGNS, RETAIL_SIGNS
 
 if TYPE_CHECKING:
     from ibis.expr.types import Column, Table
@@ -164,7 +163,7 @@ def merge_future_nbbo(
     best_bid_col: str = "best_bid",
     best_ask_col: str = "best_ask",
     midpoint_col: str = "midpoint",
-    suffixes: Tuple[str, str] = ("", "_next"),
+    suffixes: tuple[str, str] = ("", "_next"),
 ) -> "Table":
     """Merge future NBBO data with current data.
 

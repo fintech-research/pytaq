@@ -49,12 +49,7 @@ result = df[df["spread"] < 5.0]
 ```python
 con = ibis.connect("duckdb://")
 table = con.read_csv("quotes.csv")
-result = (
-    table
-    .mutate(spread=table.ask - table.bid)
-    .filter(table.spread < 5.0)
-    .execute()
-)
+result = table.mutate(spread=table.ask - table.bid).filter(table.spread < 5.0).execute()
 ```
 
 ### API Changes

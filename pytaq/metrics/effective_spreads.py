@@ -1,7 +1,5 @@
 from typing import TYPE_CHECKING
 
-import ibis
-
 if TYPE_CHECKING:
     from ibis.expr.types import Table
 
