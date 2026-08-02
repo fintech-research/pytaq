@@ -71,16 +71,11 @@ The two agree to first order and diverge as spreads widen, so the choice matters
 
 `compute_effective_spreads` adds `DollarEffectiveSpread` and `PercentEffectiveSpread`, twice the absolute distance between the trade price and the prevailing midpoint.
 
-It expects the table to carry `lock` and `cross` indicator columns and filters on them, but no function in the package currently produces columns by those names, so you have to add them yourself for now:
+Trades struck while the market was locked or crossed are excluded, as Holden and Jacobsen require, since the midpoint is not meaningful then. The indicators are derived from the prevailing bid and ask, so nothing needs preparing:
 
 ```python
-from pytaq.metrics import crossed_rows, locked_rows
-
-prepared = signed.mutate(
-    lock=locked_rows(signed.best_ask, signed.best_bid).ifelse(1, 0),
-    cross=crossed_rows(signed.best_ask, signed.best_bid).ifelse(1, 0),
-)
-effective = compute_effective_spreads(prepared)
+effective = compute_effective_spreads(signed)
+effective = compute_effective_spreads(signed, exclude_locked_crossed=False)  # keep them
 ```
 
 ## Realized spreads and price impacts

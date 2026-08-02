@@ -38,20 +38,8 @@ def test_end_to_end_trades_to_effective_spreads(signed_trades):
     This is the path 1 and 2 workflow. Only opening the tables differs there,
     and that needs a live postgres server.
 
-    Note the two columns added by hand. compute_effective_spreads filters on
-    `lock` and `cross`, and nothing in the package produces columns by those
-    names, so it cannot currently be called on the output of the documented
-    pipeline. Tracked separately; this test pins the requirement so the gap is
-    visible rather than latent.
     """
-    from .metrics.locks_crosses import crossed_rows, locked_rows
-
-    prepared = signed_trades.mutate(
-        lock=locked_rows(signed_trades.best_ask, signed_trades.best_bid).ifelse(1, 0),
-        cross=crossed_rows(signed_trades.best_ask, signed_trades.best_bid).ifelse(1, 0),
-    )
-
-    result = compute_effective_spreads(prepared).execute()
+    result = compute_effective_spreads(signed_trades).execute()
 
     assert len(result) == 4
     for column in ["DollarEffectiveSpread", "PercentEffectiveSpread"]:
@@ -297,36 +285,30 @@ def test_rs_and_pi_adds_a_column_set_per_sign(signed_trades):
         assert (buys["DollarPriceImpact_LR5min"] > 0).all()
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="merge_future_nbbo ignores its suffixes argument, so the join emits "
-    "best_ask_right while compute_rs_and_pi reads best_ask_next (#26)",
-)
 def test_compute_rs_and_pi_runs_end_to_end(signed_trades, cleaned_nbbo):
-    """The full realized-spread path, including the future-NBBO merge."""
+    """The full realized-spread path, including the future-NBBO merge.
+
+    Regression test for #26: merge_future_nbbo ignored its suffix argument, so
+    the join emitted best_ask_right while the caller read best_ask_next.
+    """
     from .metrics.rs_and_pi import compute_rs_and_pi
 
-    prepared = signed_trades.mutate(
-        lock=signed_trades.best_ask.isnull().ifelse(0, 0),
-        cross=signed_trades.best_ask.isnull().ifelse(0, 0),
-    )
-
     result = compute_rs_and_pi(
-        prepared,
+        signed_trades,
         off_nbbo_table=cleaned_nbbo,
         delay=datetime.timedelta(minutes=1),
         suffix="1min",
     ).execute()
 
-    for prefix in ["DollarRealizedSpread_", "DollarPriceImpact_"]:
+    for prefix in [
+        "DollarRealizedSpread_",
+        "PercentRealizedSpread_",
+        "DollarPriceImpact_",
+        "PercentPriceImpact_",
+    ]:
         assert f"{prefix}LR1min" in result.columns
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="merge_future_nbbo ignores its suffixes argument, so columns come "
-    "back suffixed _right rather than _next (#26)",
-)
 def test_merge_future_nbbo_attaches_a_later_midpoint(signed_trades, cleaned_nbbo):
     """The merge brings in a midpoint from `delay` after the trade."""
     from .metrics.rs_and_pi import merge_future_nbbo
@@ -337,3 +319,41 @@ def test_merge_future_nbbo_attaches_a_later_midpoint(signed_trades, cleaned_nbbo
 
     assert "midpoint_next" in result.columns
     assert "best_ask_next" in result.columns
+
+
+def test_merge_future_nbbo_does_not_fan_out(signed_trades, cleaned_nbbo):
+    """One row per trade.
+
+    The previous implementation was an inequality left join, which matches
+    every quote from the horizon onward rather than the nearest one, turning
+    each trade into as many rows as there are later quotes.
+    """
+    from .metrics.rs_and_pi import merge_future_nbbo
+
+    trades_in = signed_trades.count().execute()
+
+    rows_out = (
+        merge_future_nbbo(
+            signed_trades, cleaned_nbbo, delay=datetime.timedelta(minutes=1)
+        )
+        .count()
+        .execute()
+    )
+
+    assert rows_out == trades_in
+
+
+def test_effective_spreads_need_no_hand_built_indicators(signed_trades):
+    """Regression test for #27.
+
+    compute_effective_spreads used to filter on `lock` and `cross` columns
+    that nothing in the package produced, so it could not be called on
+    pipeline output at all. It now derives them from the prevailing quote.
+    """
+    from .metrics.effective_spreads import compute_effective_spreads
+
+    result = compute_effective_spreads(signed_trades).execute()
+
+    assert "DollarEffectiveSpread" in result.columns
+    assert "PercentEffectiveSpread" in result.columns
+    assert (result["DollarEffectiveSpread"].dropna() >= 0).all()
