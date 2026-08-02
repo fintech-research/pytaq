@@ -64,9 +64,9 @@ Dollar measures agree throughout. Percent measures follow H&J by default, dividi
 
 | Step | Holden and Jacobsen | PyTAQ | Status |
 |---|---|---|---|
-| Quoted spread: drop locked and crossed | `if BestOfr <= BestBid then delete` | `filter_locks_crosses` | available, not wired into `compute_spreads` |
-| Effective spread: drop locked and crossed trades | `if lock or cross then delete` | expects `lock` and `cross` columns nothing creates | differs, #27 |
-| Realized spread: drop if the **T+5** quote is locked or crossed | yes | intended, currently raises | differs, #26 |
+| Quoted spread: drop locked and crossed | `if BestOfr <= BestBid then delete` | `filter_locks_crosses`, applied by `compute_weighted_spreads` | matches |
+| Effective spread: drop locked and crossed trades | `if lock or cross then delete` | derived from the prevailing quote | matches |
+| Realized spread: drop if the **T+5** quote is locked or crossed | yes | same | matches |
 
 ## Aggregation
 

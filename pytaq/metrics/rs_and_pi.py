@@ -184,49 +184,43 @@ def merge_future_nbbo(
     timestamp_col: str = "timestamp",
     best_bid_col: str = "best_bid",
     best_ask_col: str = "best_ask",
-    midpoint_col: str = "midpoint",
-    suffixes: tuple[str, str] = ("", "_next"),
+    suffix: str = "_next",
 ) -> "Table":
-    """Merge future NBBO data with current data.
+    """Attach the NBBO in force `delay` after each trade.
 
-    Note: This is a simplified implementation. The original pandas merge_asof
-    functionality may need more sophisticated handling in Ibis depending on the backend.
+    Realized spread and price impact compare the trade price against the
+    midpoint some horizon later, so each trade needs exactly one future quote:
+    the one prevailing at trade time plus `delay`.
+
+    This is an as-of join, not an inequality join. Shifting the quote
+    timestamps back by `delay` and joining on "at or before" would match every
+    quote from the horizon onward and fan one trade out into thousands of rows.
 
     Args:
-        table (Table): Main table
-        nbbo_table (Table): NBBO table
-        delay (timedelta): Delay to apply
+        table (Table): Trades, carrying symbol and timestamp
+        nbbo_table (Table): Cleaned NBBO
+        delay (timedelta): How far after the trade to read the midpoint
         symbol_col (str): Symbol column name
         timestamp_col (str): Timestamp column name
         best_bid_col (str): Best bid column name
         best_ask_col (str): Best ask column name
-        midpoint_col (str): Midpoint column name
-        suffixes (Tuple[str, str]): Suffixes for merged columns
+        suffix (str): Suffix for the columns brought in from the NBBO
 
     Returns:
-        Table: Merged table
+        Table: Input table with the future NBBO and its midpoint attached
     """
-    # Prepare NBBO table with adjusted timestamps and midpoint
-    next_table = nbbo_table.select(
+    future = nbbo_table.select(
         [timestamp_col, symbol_col, best_bid_col, best_ask_col]
-    ).mutate(
-        midpoint_next=(nbbo_table[best_bid_col] + nbbo_table[best_ask_col]) / 2,
-        timestamp_adjusted=nbbo_table[timestamp_col] - delay,
-    )
+    ).mutate(midpoint=(nbbo_table[best_bid_col] + nbbo_table[best_ask_col]) / 2)
 
-    # Sort both tables
-    table_sorted = table.order_by([timestamp_col, symbol_col])
-    next_table_sorted = next_table.order_by(["timestamp_adjusted", symbol_col])
+    # Read the quote in force at trade time + delay.
+    horizon = table[timestamp_col] + delay
 
-    # Join on symbol and timestamp (simplified - may need window functions for proper asof merge)
-    # This is a basic implementation - the actual asof merge logic may need to be more sophisticated
-    return table_sorted.join(
-        next_table_sorted,
-        predicates=[
-            table_sorted[symbol_col] == next_table_sorted[symbol_col],
-            table_sorted[timestamp_col] >= next_table_sorted.timestamp_adjusted,
-        ],
-        how="left",
+    return table.asof_join(
+        future,
+        on=horizon >= future[timestamp_col],
+        predicates=[table[symbol_col] == future[symbol_col]],
+        rname="{name}" + suffix,
     )
 
 

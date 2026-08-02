@@ -18,8 +18,8 @@ def test_compute_effective_spreads_basic(con):
     data = {
         "price": [100.0, 101.0, 102.0],
         "midpoint": [99.5, 100.5, 101.5],
-        "cross": [0, 0, 0],
-        "lock": [0, 0, 0],
+        "best_bid": [99.0, 100.0, 101.0],
+        "best_ask": [100.0, 101.0, 102.0],
     }
     table = con.create_table("test", data)
 
@@ -41,8 +41,8 @@ def test_compute_effective_spreads_filters_locks(con):
         "id": [1, 2, 3, 4],
         "price": [100.0, 101.0, 102.0, 103.0],
         "midpoint": [99.5, 100.5, 101.5, 102.5],
-        "cross": [0, 0, 0, 0],
-        "lock": [0, 1, 0, 1],  # Rows 2 and 4 are locked
+        "best_bid": [99.0, 100.5, 101.0, 102.5],
+        "best_ask": [100.0, 100.5, 102.0, 102.5],
     }
     table = con.create_table("test", data)
 
@@ -60,8 +60,8 @@ def test_compute_effective_spreads_filters_crosses(con):
         "id": [1, 2, 3, 4],
         "price": [100.0, 101.0, 102.0, 103.0],
         "midpoint": [99.5, 100.5, 101.5, 102.5],
-        "cross": [0, 1, 0, 1],  # Rows 2 and 4 are crossed
-        "lock": [0, 0, 0, 0],
+        "best_bid": [99.0, 101.0, 101.0, 103.0],
+        "best_ask": [100.0, 100.0, 102.0, 102.0],
     }
     table = con.create_table("test", data)
 
@@ -79,8 +79,8 @@ def test_compute_effective_spreads_filters_both(con):
         "id": [1, 2, 3, 4, 5],
         "price": [100.0, 101.0, 102.0, 103.0, 104.0],
         "midpoint": [99.5, 100.5, 101.5, 102.5, 103.5],
-        "cross": [0, 1, 0, 0, 1],
-        "lock": [0, 0, 1, 0, 0],
+        "best_bid": [99.0, 101.0, 101.5, 102.0, 104.0],
+        "best_ask": [100.0, 100.0, 101.5, 103.0, 103.0],
     }
     table = con.create_table("test", data)
 
@@ -97,8 +97,8 @@ def test_compute_effective_spreads_dollar_calculation(con):
     data = {
         "price": [100.0, 105.0, 98.0],
         "midpoint": [99.0, 100.0, 100.0],
-        "cross": [0, 0, 0],
-        "lock": [0, 0, 0],
+        "best_bid": [98.5, 99.5, 99.5],
+        "best_ask": [99.5, 100.5, 100.5],
     }
     table = con.create_table("test", data)
 
@@ -117,8 +117,8 @@ def test_compute_effective_spreads_percent_calculation(con):
     data = {
         "price": [100.0, 105.0],
         "midpoint": [99.0, 100.0],
-        "cross": [0, 0],
-        "lock": [0, 0],
+        "best_bid": [98.5, 99.5],
+        "best_ask": [99.5, 100.5],
     }
     table = con.create_table("test", data)
 
@@ -139,8 +139,8 @@ def test_compute_effective_spreads_preserves_columns(con):
         "symbol": ["AAPL", "MSFT"],
         "price": [100.0, 101.0],
         "midpoint": [99.5, 100.5],
-        "cross": [0, 0],
-        "lock": [0, 0],
+        "best_bid": [99.0, 100.0],
+        "best_ask": [100.0, 101.0],
         "volume": [1000, 2000],
     }
     table = con.create_table("test", data)
@@ -167,8 +167,8 @@ def one_trade(con):
         {
             "price": [100.5],
             "midpoint": [100.0],
-            "lock": [0],
-            "cross": [0],
+            "best_bid": [99.5],
+            "best_ask": [100.5],
         }
     )
     return con.create_table("one_trade", data)
