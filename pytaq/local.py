@@ -59,7 +59,7 @@ def connect(**kwargs) -> "DuckDBBackend":
         DuckDBBackend: Backend to pass to the ``get_*`` functions.
     """
     try:
-        import ibis.backends.duckdb  # noqa: F401
+        import ibis.backends.duckdb
     except ImportError as e:
         raise ImportError(
             "Reading local TAQ files requires the duckdb backend. "
@@ -103,10 +103,7 @@ def get_table(
     """
     path = _find_file(Path(data_dir), table_name)
 
-    if path.name.endswith(".parquet"):
-        t = con.read_parquet(path)
-    else:
-        t = con.read_csv(path)
+    t = con.read_parquet(path) if path.name.endswith(".parquet") else con.read_csv(path)
 
     if symbols is not None:
         # Match the postgres path, which filters on sym_root. Fall back to the
