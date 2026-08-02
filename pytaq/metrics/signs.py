@@ -38,16 +38,14 @@ def sign_tick(
     else:
         raise ValueError("groupby_col should be str or a list of str.")
 
-    # Sort table by timestamp and group columns
-    sorted_table = table.order_by([timestamp_col, *group])
-
-    # Create window for lag operations
-    window = ibis.window(
-        partition_by=group, order_by=timestamp_col, preceding=1, following=0
-    )
+    # Note: ibis.window takes group_by, not partition_by. The window carries its
+    # own ordering, so the table itself must not be re-sorted first: doing that
+    # builds the expression against a different relation than the caller passes
+    # to mutate(), which ibis rejects.
+    window = ibis.window(group_by=group, order_by=timestamp_col)
 
     # Compute price difference and sign
-    price_diff = sorted_table[price_col] - sorted_table[price_col].lag().over(window)
+    price_diff = table[price_col] - table[price_col].lag().over(window)
     dir_col = price_diff.sign()
 
     # Handle zero values (set to null)
@@ -57,7 +55,7 @@ def sign_tick(
     # Use a cumulative max window to propagate last non-null value forward
     # This works because sign values are -1, 0, 1 or null
     forward_fill_window = ibis.window(
-        partition_by=group,
+        group_by=group,
         order_by=timestamp_col,
         preceding=None,  # Unbounded preceding
         following=0,

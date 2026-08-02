@@ -29,34 +29,25 @@ def compute_quote_inforce(
     Returns:
         Table: Table with inforce column added
     """
-    # Create window for lag operations
-    window = ibis.window(
-        partition_by=groupby_col, order_by=timestamp_col, preceding=1, following=0
+    # Note: ibis.window takes group_by, not partition_by.
+    window = ibis.window(group_by=groupby_col, order_by=timestamp_col)
+
+    # A quote is in force until the next quote for the same symbol. The last
+    # quote of the day has no successor, so it stays in force until
+    # end_timestamp.
+    next_timestamp = table[timestamp_col].lead().over(window)
+    seconds_to_next = next_timestamp.delta(table[timestamp_col], unit="second")
+    seconds_to_close = ibis.timestamp(end_timestamp).delta(
+        table[timestamp_col], unit="second"
     )
 
-    # Compute time difference between consecutive quotes
-    table = table.mutate(
-        temp_diff=(
-            table[timestamp_col] - table[timestamp_col].over(window)
-        ).total_seconds()
+    return table.mutate(
+        **{
+            inforce_col: seconds_to_next.isnull().ifelse(
+                seconds_to_close, seconds_to_next
+            )
+        }
     )
-
-    # Shift the difference to get the inforce time for each quote
-    window_shift = ibis.window(
-        partition_by=groupby_col, order_by=timestamp_col, preceding=0, following=1
-    )
-
-    table = table.mutate(temp_inforce=table.temp_diff.over(window_shift))
-
-    # Handle missing values for the last quote of the day
-    table = table.mutate(
-        inforce=table.temp_inforce.isnull().ifelse(
-            ((end_timestamp - table[timestamp_col]).total_seconds()).abs(),
-            table.temp_inforce,
-        )
-    )
-
-    return table.drop("temp_diff", "temp_inforce")
 
 
 def compute_spreads(table: "Table") -> "Table":

@@ -235,4 +235,6 @@ def test_sign_clnv_basic(con):
     assert result["clnv_sign"].iloc[3] == -1
 
 
-# TODO: Add test_sign_tick_basic once window API is fixed
+# TODO: Add test_sign_tick_basic and an end-to-end sign_trades test once the
+# forward fill is fixed (#8). The window API is correct now, but the current
+# fill nests a window function inside another, which SQL does not allow.

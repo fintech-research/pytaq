@@ -151,7 +151,6 @@ def test_compute_weighted_averages_zero_weight(con):
     assert pd.isna(result["quoted_spread_dollar"].iloc[0])
 
 
-@pytest.mark.skip(reason="Window API issue - partition_by parameter")
 def test_compute_quote_inforce_basic(con):
     """Test quote inforce time computation."""
     data = pd.DataFrame(
@@ -187,7 +186,6 @@ def test_compute_quote_inforce_basic(con):
     assert abs(result["inforce"].iloc[2] - last_inforce) < 1e-6
 
 
-@pytest.mark.skip(reason="Window API issue - partition_by parameter")
 def test_compute_quote_inforce_multiple_symbols(con):
     """Test quote inforce with multiple symbols."""
     data = pd.DataFrame(
