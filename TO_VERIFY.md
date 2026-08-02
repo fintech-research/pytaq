@@ -53,6 +53,12 @@ trading day 2020-01-02, using AAPL (Nasdaq-listed) and A (NYSE-listed).
 - [ ] Confirm that `merge_quotes_nbbo` on the cleaned NBBO and quote files
       reproduces WRDS's own `complete_nbbo_*` table.
 
-- [ ] Whether the correct CQS `natbbo_ind` code is `"A"`, or some subset of the
-      observed `A`, `U`, `G`, `O`. Needs the TAQ specification, not inference
-      from one day. See #30.
+- [ ] The post-2016 CQS `natbbo_ind` codes. The 2013 Daily TAQ specification
+      documents CQS as numeric (`0`, `1`, `2`, `4`, `6`) and that matches the
+      2016 data exactly, so PyTAQ's filter is correct for that era. By 2020 CQS
+      serves letters (`A`, `U`, `G`, `O`) and the filter drops every NYSE-listed
+      quote. Resolving this needs a current specification; the 2013 edition in
+      `~/Dropbox/Projects/taq docs/` predates the change. See #30.
+
+- [ ] Whether the one-millisecond trade-to-quote lag H&J specify should remain
+      the default now that TAQ carries nanoseconds. See #40.

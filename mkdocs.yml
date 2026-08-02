@@ -77,6 +77,8 @@ nav:
       - Data Cleaning: user-guide/cleaning.md
       - Computing Metrics: user-guide/metrics.md
       - Working with NBBO: user-guide/nbbo.md
+  - Reference:
+      - Holden and Jacobsen conformance: reference/holden-jacobsen.md
   - API Reference:
       - Data Sources: api/data-sources.md
       - Cleaning Module: api/cleaning.md
