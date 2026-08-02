@@ -1,8 +1,11 @@
 import datetime
 from sys import platform, version_info
+from typing import TYPE_CHECKING
 
 import ibis
-from psycopg2 import OperationalError
+
+if TYPE_CHECKING:
+    from ibis.backends.postgres import Backend as PostgresBackend
 
 # Define the application name, WRDS will probably use it to track usage
 APPNAME = f"{platform} python {version_info.major}.{version_info.minor}.{version_info.micro}/pytaq-ibis"
@@ -25,7 +28,18 @@ def connect(
     sslmode: str = "require",
     application_name: str = APPNAME,
     **kwargs,
-) -> ibis.backends.Backend:
+) -> "PostgresBackend":
+    # Imported lazily so that pytaq.wrds stays importable without the postgres
+    # extra installed; only connecting actually needs the driver.
+    try:
+        from ibis.backends.postgres import Backend as _PostgresBackend
+        from psycopg import OperationalError
+    except ImportError as e:
+        raise ImportError(
+            "Connecting to WRDS requires the postgres backend. "
+            "Install it with: pip install 'pytaq[postgres]'"
+        ) from e
+
     try:
         con = ibis.postgres.connect(
             user=username,
@@ -38,14 +52,14 @@ def connect(
     except OperationalError as e:
         raise ConnectionError(f"Failed to connect to WRDS: {e}") from e
 
-    if isinstance(con, ibis.backends.postgres.Backend):
+    if isinstance(con, _PostgresBackend):
         return con
     else:
         raise ConnectionError("Failed to connect to WRDS (unknown error)")
 
 
 def get_table(
-    con: ibis.backends.postgres.Backend,
+    con: "PostgresBackend",
     symbols: list[str] | None,
     table_name: str,
     database: str,

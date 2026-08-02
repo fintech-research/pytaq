@@ -7,7 +7,7 @@ name = "pytaq"
 version = "0.2.0"
 description = "Process NYSE TAQ trade and quote data with Ibis"
 readme = "README.md"
-requires-python = ">=3.11,<3.13"
+requires-python = ">=3.11"
 authors = [{ name = "Vincent Grégoire", email = "vincent.gregoire@hec.ca" }]
 license = "BSD-3-Clause"
 license-files = ["LICENSE"]
@@ -30,14 +30,28 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Office/Business :: Financial :: Investment",
     "Topic :: Scientific/Engineering :: Information Analysis",
     "Typing :: Typed",
 ]
 dependencies = [
-    "ibis-framework>=9.5.0",
-    "ibis-framework[duckdb,polars,postgres]>=9.5.0",
+    "ibis-framework>=12,<13",
+    # ibis 12.0.0 imports packaging in its SQL compilers but never declares it,
+    # so a minimal install of any SQL backend fails on import. Declare it here.
+    "packaging>=21",
 ]
+
+# Backends are optional: which one you need depends on how you use PyTAQ.
+#   postgres -> querying the WRDS postgres server, on the WRDS cloud or locally
+#   duckdb / polars -> working against local copies of TAQ files
+[project.optional-dependencies]
+duckdb = ["ibis-framework[duckdb]>=12,<13"]
+polars = ["ibis-framework[polars]>=12,<13"]
+# ibis[postgres] pulls bare psycopg, which needs a system libpq at import time.
+# psycopg[binary] ships libpq in the wheel, so no system postgres is required.
+postgres = ["ibis-framework[postgres]>=12,<13", "psycopg[binary]>=3.2"]
+all = ["pytaq[duckdb,polars,postgres]"]
 
 [project.urls]
 Homepage = "https://github.com/fintech-research/pytaq"
@@ -52,21 +66,21 @@ packages = ["pytaq"]
 include = ["pytaq", "README.md", "LICENSE", "pyproject.toml"]
 
 
-[tool.uv.pip]
-only-binary = ["pyarrow"]
-
 [dependency-groups]
 dev = [
-    "jupyter>=1.1.1",
+    # Developing and testing exercises every backend, so pull them all in.
+    "ibis-framework[duckdb,polars,postgres]>=12,<13",
+    "psycopg[binary]>=3.2",
     "mkdocs>=1.6.1",
-    "mkdocs-material>=9.6.21",
+    "mkdocs-material>=9.7.7",
     "mkdocstrings>=0.30.1",
-    "mkdocstrings-python>=1.18.2",
-    "polars>=1.13.0",
-    "pyarrow>=17",
+    "mkdocstrings-python>=2.0.5",
     "pytest>=8.3.3",
     "pytest-cov>=7.0.0",
-    "python-dotenv>=1.0.1",
+    # Reads local WRDS credentials from .env
+    "python-dotenv>=1.2.2",
+    "ruff>=0.16.1",
+    "ty>=0.0.65",
 ]
 
 [tool.ruff.format]
