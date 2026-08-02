@@ -16,7 +16,13 @@ from .nbbo import (
     filter_empty_quotes,
 )
 from .official_nbbo import clean_official_complete_nbbo
-from .quotes import clean_quote_table, filter_quote_table, filter_withdrawned_quotes
+from .quotes import (
+    clean_quote_table,
+    filter_quote_table,
+    neutralize_abnormal_spreads,
+    neutralize_crossed_quotes,
+    neutralize_withdrawn_quotes,
+)
 from .trades import clean_trades
 
 __all__ = [
@@ -30,9 +36,11 @@ __all__ = [
     "filter_changes_only",
     "filter_empty_quotes",
     "filter_quote_table",
-    "filter_withdrawned_quotes",
     "merge_datetime",
     "merge_quotes_nbbo",
     "merge_symbol",
     "merge_trades_official_nbbo",
+    "neutralize_abnormal_spreads",
+    "neutralize_crossed_quotes",
+    "neutralize_withdrawn_quotes",
 ]

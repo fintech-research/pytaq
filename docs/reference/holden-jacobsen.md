@@ -13,14 +13,16 @@ Legend: **matches**, **differs** (tracked by an issue), **absent**.
 | Quote window | 09:00 to 16:00 | `HJ_START_TIME_QUOTES` 09:00 | matches |
 | Trade window | 09:30 to 16:00 | `HJ_START_TIME_TRADES` 09:30 | matches |
 | Trade filter | `corr = '00'` and `price > 0` | same | matches |
-| Abnormal quote conditions | neutralise the quote | drops the row | differs, #41 |
-| Crossed quotes on one exchange | neutralise | drops the row | differs, #41 |
-| One-sided quotes | keep, neutralise the absent side | drops the row | differs, #41 |
-| Spread wider than $5 | neutralise | drops the row | differs, #41 |
-| Withdrawn quotes | neutralise, **explicitly not deleted** | drops the row | differs, #41 |
+| Abnormal quote conditions | neutralise the quote | neutralises both sides | matches |
+| Crossed quotes on one exchange | neutralise | neutralises both sides | matches |
+| One-sided quotes | keep, neutralise the absent side | same | matches |
+| Spread wider than $5 | neutralise | neutralises both sides | matches |
+| Withdrawn quotes | neutralise, **explicitly not deleted** | neutralises the affected side | matches |
 | NBBO eligibility | not applicable to MTAQ | `qu_source` and `natbbo_ind` | matches the 2013 spec; breaks on post-2016 CQS, #30 |
 
-The withdrawn-quote row is the one that matters most. Deleting a withdrawn quote leaves that exchange's *previous* quote standing in the reconstructed NBBO, which is the stale-quote error the paper is about.
+These filters set the offending side to null rather than dropping the row, which is what H&J require: deleting a withdrawn quote leaves that exchange's *previous* quote standing in the reconstructed NBBO, the stale-quote error the paper is about. PyTAQ uses null where H&J use the sentinel values 0 and 9999999, which are a SAS artefact.
+
+`clean_nbbo` still deletes rows on the cancelled-quote flag. That operates on the NBBO file, whose rows are the SIP's own output rather than per-venue quotes carried forward, so the same argument does not obviously apply. Worth revisiting.
 
 ## Matching trades to quotes
 

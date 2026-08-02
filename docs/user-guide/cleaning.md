@@ -36,16 +36,20 @@ quotes = clean_quote_table(raw_quotes)
 
 Applies, in order: quote-condition allowlist, cancelled quotes, crossed markets, abnormal spreads, withdrawn quotes, and NBBO eligibility. Sizes are converted from round lots to shares.
 
+"Exclude" means the offending side is set to null, not that the row is dropped. Holden and Jacobsen are explicit that a withdrawn quote must not be deleted, because the NBBO carries each venue's last quote forward and deleting the withdrawal leaves the venue's *previous* quote standing as though still live. Only `nbbo_only` is a genuine row filter.
+
+One consequence: a one-sided quote keeps its live side and still contributes to that side of the NBBO, rather than being discarded.
+
 Each step has its own switch:
 
 ```python
 quotes = clean_quote_table(
     raw_quotes,
     keep_qu_cond=["A", "R"],
-    delete_canceled_quotes=True,
-    delete_crossed_markets=True,
-    delete_withdrawned_quotes=True,
-    delete_abnormal_spreads=True,
+    exclude_canceled_quotes=True,
+    exclude_crossed_markets=True,
+    exclude_withdrawn_quotes=True,
+    exclude_abnormal_spreads=True,
     nbbo_only=True,
     output_flags=False,
 )
