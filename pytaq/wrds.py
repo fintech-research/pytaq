@@ -1,11 +1,14 @@
-import datetime
 from sys import platform, version_info
 from typing import TYPE_CHECKING
 
 import ibis
 
+from .tables import DEFAULT_DATABASE
+
 if TYPE_CHECKING:
     from ibis.backends.postgres import Backend as PostgresBackend
+
+__all__ = ["DEFAULT_DATABASE", "connect", "get_table"]
 
 # Define the application name, WRDS will probably use it to track usage
 APPNAME = f"{platform} python {version_info.major}.{version_info.minor}.{version_info.micro}/pytaq-ibis"
@@ -15,8 +18,6 @@ WRDS_POSTGRES_HOST = "wrds-pgdata.wharton.upenn.edu"
 WRDS_POSTGRES_PORT = 9737
 WRDS_POSTGRES_DB = "wrds"
 WRDS_CONNECT_ARGS = {"sslmode": "require", "application_name": APPNAME}
-
-DEFAULT_DATABASE = "taqmsec"
 
 
 def connect(
@@ -68,21 +69,3 @@ def get_table(
     if symbols is not None:
         t = t.filter(t.sym_root.isin(symbols))
     return t
-
-
-def get_trades_table_name(date: datetime.date | datetime.datetime) -> str:
-    return "ctm_" + date.strftime("%Y%m%d")
-
-
-def get_nbbo_table_name(date: datetime.date | datetime.datetime) -> str:
-    return "nbbom_" + date.strftime("%Y%m%d")
-
-
-def get_official_complete_nbbo_table_name(
-    date: datetime.date | datetime.datetime,
-) -> str:
-    return "complete_nbbo_" + date.strftime("%Y%m%d")
-
-
-def get_quotes_table_name(date: datetime.date | datetime.datetime) -> str:
-    return "cqm_" + date.strftime("%Y%m%d")
