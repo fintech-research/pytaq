@@ -55,7 +55,21 @@ quoted = compute_spreads(nbbo)
 effective = compute_effective_spreads(signed)
 ```
 
-`compute_spreads` adds dollar and percent quoted spreads to a quote table. `compute_effective_spreads` adds dollar and percent effective spreads, twice the signed distance between the trade price and the prevailing midpoint.
+`compute_spreads` adds `quoted_spread_dollar` and `quoted_spread_percent` to a quote table, along with depth in dollars and shares on each side.
+
+`compute_effective_spreads` adds `DollarEffectiveSpread` and `PercentEffectiveSpread`, twice the absolute distance between the trade price and the prevailing midpoint.
+
+It expects the table to carry `lock` and `cross` indicator columns and filters on them, but no function in the package currently produces columns by those names, so you have to add them yourself for now:
+
+```python
+from pytaq.metrics import crossed_rows, locked_rows
+
+prepared = signed.mutate(
+    lock=locked_rows(signed.best_ask, signed.best_bid).ifelse(1, 0),
+    cross=crossed_rows(signed.best_ask, signed.best_bid).ifelse(1, 0),
+)
+effective = compute_effective_spreads(prepared)
+```
 
 ## Realized spreads and price impacts
 
@@ -108,7 +122,7 @@ from pytaq.metrics import compute_averages
 
 daily = compute_averages(
     signed,
-    cols=["effective_spread_dollar", "effective_spread_percent"],
+    cols=["DollarEffectiveSpread", "PercentEffectiveSpread"],
     group="symbol",
     weights=[(None, ""), ("size", "_sw"), ("dollar", "_dw")],
 )
