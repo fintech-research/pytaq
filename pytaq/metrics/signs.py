@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List, Union
+from typing import TYPE_CHECKING
 
 import ibis
 
@@ -16,7 +16,7 @@ RETAIL_SIGNS = ["BJZ"] + [x + "notBJZ" for x in BASE_SIGNS]
 
 def sign_tick(
     table: "Table",
-    groupby_col: Union[str, List[str]] = "symbol",
+    groupby_col: str | list[str] = "symbol",
     timestamp_col: str = "timestamp",
     price_col: str = "price",
 ) -> "Column":
@@ -39,7 +39,7 @@ def sign_tick(
         raise ValueError("groupby_col should be str or a list of str.")
 
     # Sort table by timestamp and group columns
-    sorted_table = table.order_by([timestamp_col] + group)
+    sorted_table = table.order_by([timestamp_col, *group])
 
     # Create window for lag operations
     window = ibis.window(
@@ -220,7 +220,7 @@ def sign_bjz(price: "Column", ex: "Column") -> "Column":
 
 def sign_trades(
     table: "Table",
-    groupby_col: Union[str, List[str]] = "symbol",
+    groupby_col: str | list[str] = "symbol",
     timestamp_col: str = "timestamp",
     price_col: str = "price",
     sign_col_prefix: str = "BuySell",

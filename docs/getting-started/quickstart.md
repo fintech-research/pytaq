@@ -45,9 +45,9 @@ clean_quotes = clean_quote_table(
     quotes,
     keep_qu_cond=["A", "B", "H", "O", "R", "W"],  # Valid quote conditions
     filter_cancelled=True,  # Remove cancelled quotes
-    filter_crossed=True,    # Remove crossed markets
-    max_spread=5.0,        # Remove quotes with spread > $5
-    nbbo_only=True         # Keep only NBBO quotes
+    filter_crossed=True,  # Remove crossed markets
+    max_spread=5.0,  # Remove quotes with spread > $5
+    nbbo_only=True,  # Keep only NBBO quotes
 )
 
 # Execute and view results
@@ -68,7 +68,7 @@ spreads = compute_effective_spreads(
     price_col="price",
     best_ask_col="best_ask",
     best_bid_col="best_bid",
-    filter_locks_crosses=True
+    filter_locks_crosses=True,
 )
 
 # View results
@@ -87,22 +87,17 @@ from pytaq.metrics import sign_bjz, sign_lr, sign_emo, sign_clnv
 trades = con.table("trades")
 
 # BJZ retail classification (for off-exchange trades)
-trades = trades.mutate(
-    bjz_sign=sign_bjz(trades.price, trades.ex)
-)
+trades = trades.mutate(bjz_sign=sign_bjz(trades.price, trades.ex))
 
 # Lee-Ready classification
 trades = trades.mutate(
     midpoint=(trades.best_bid + trades.best_ask) / 2,
-    lock_cross=(trades.best_ask <= trades.best_bid)
+    lock_cross=(trades.best_ask <= trades.best_bid),
 )
 
 trades = trades.mutate(
     lr_sign=sign_lr(
-        trades.price,
-        trades.midpoint,
-        trades.tick_direction,
-        trades.lock_cross
+        trades.price, trades.midpoint, trades.tick_direction, trades.lock_cross
     )
 )
 
@@ -119,15 +114,11 @@ from pytaq.metrics import dollar_realized_spread, percent_realized_spread
 # Assuming you have trades with next midpoint
 trades = trades.mutate(
     rs_dollar=dollar_realized_spread(
-        trades.trade_sign,
-        trades.price,
-        trades.midpoint_next
+        trades.trade_sign, trades.price, trades.midpoint_next
     ),
     rs_percent=percent_realized_spread(
-        trades.trade_sign,
-        trades.price,
-        trades.midpoint_next
-    )
+        trades.trade_sign, trades.price, trades.midpoint_next
+    ),
 )
 
 results = trades.execute()
@@ -141,11 +132,7 @@ from datetime import time
 from pytaq.extract.common import filter_by_time
 
 # Filter to regular trading hours (9:30 AM - 4:00 PM)
-filtered = filter_by_time(
-    quotes,
-    start_time=time(9, 30, 0),
-    end_time=time(16, 0, 0)
-)
+filtered = filter_by_time(quotes, start_time=time(9, 30, 0), end_time=time(16, 0, 0))
 
 results = filtered.execute()
 ```

@@ -1,5 +1,5 @@
 from datetime import date, datetime, time
-from typing import TYPE_CHECKING, List, Optional, Union
+from typing import TYPE_CHECKING
 
 from ..hj_defaults import HJ_END_TIME_QUOTES, HJ_START_TIME_QUOTES
 from .common import merge_symbol
@@ -30,7 +30,7 @@ OFF_NBBO_COLS_CLEAN = [
 ]
 
 
-def get_official_complete_nbbo_table(date: Union[datetime, date]) -> str:
+def get_official_complete_nbbo_table(date: datetime | date) -> str:
     """Returns the Official complete NBBO table name for a given date for TAQ in WRDS
 
     Args:
@@ -43,11 +43,11 @@ def get_official_complete_nbbo_table(date: Union[datetime, date]) -> str:
 
 
 def get_official_complete_nbbo_sql_query(
-    date: Union[datetime, date],
-    library: Optional[str] = None,
-    symbols: Optional[List[str]] = None,
-    start_time: Optional[Union[datetime, time]] = HJ_START_TIME_QUOTES,
-    end_time: Optional[Union[datetime, time]] = HJ_END_TIME_QUOTES,
+    date: datetime | date,
+    library: str | None = None,
+    symbols: list[str] | None = None,
+    start_time: datetime | time | None = HJ_START_TIME_QUOTES,
+    end_time: datetime | time | None = HJ_END_TIME_QUOTES,
 ) -> str:
     """Returns a SQL query to retreive the official complete NBBO from TAQ in WRDS
 
@@ -86,12 +86,12 @@ def clean_official_complete_nbbo_table(nbbo: "Table") -> "Table":
 
 
 def get_official_complete_nbbo(
-    date: Union[datetime, date],
+    date: datetime | date,
     conn: "wrds.sql.Connection",
-    library: Optional[str] = None,
-    symbols: Optional[List[str]] = None,
-    start_time: Optional[Union[datetime, time]] = HJ_START_TIME_QUOTES,
-    end_time: Optional[Union[datetime, time]] = HJ_END_TIME_QUOTES,
+    library: str | None = None,
+    symbols: list[str] | None = None,
+    start_time: datetime | time | None = HJ_START_TIME_QUOTES,
+    end_time: datetime | time | None = HJ_END_TIME_QUOTES,
 ) -> "Table":
     """Retreives and cleans the official complete NBBO table from TAQ in WRDS
 

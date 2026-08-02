@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 import ibis
 
 if TYPE_CHECKING:
-    from ibis.expr.types import Column
+    from ibis.expr.types import BooleanValue, Column, NumericValue
 
 """
     Notes:
@@ -17,16 +17,18 @@ if TYPE_CHECKING:
 DEFAULT_ATOL = 0.000001
 
 
-def float_equal(s1: "Column", s2: "Column", atol: float = DEFAULT_ATOL) -> "Column":
-    """Compares two columns for approximate equality.
+def float_equal(
+    s1: "NumericValue", s2: "NumericValue", atol: float = DEFAULT_ATOL
+) -> "BooleanValue":
+    """Compares two numeric expressions for approximate equality.
 
     Args:
-        s1 (Column): First column to compare
-        s2 (Column): Second column to compare
+        s1 (NumericValue): First expression to compare
+        s2 (NumericValue): Second expression to compare
         atol (float, optional): Absolute tolerance for comparison. Defaults to 0.000001.
 
     Returns:
-        Column: Column of boolean indicating approximate equality
+        BooleanValue: Boolean expression indicating approximate equality
     """
     # Implement isclose manually: |s1 - s2| <= atol
     # Handle NaN: both NaN should be considered equal
@@ -39,29 +41,32 @@ def float_equal(s1: "Column", s2: "Column", atol: float = DEFAULT_ATOL) -> "Colu
     return both_null | within_tol
 
 
-def float_zero(s: "Column", atol: float = DEFAULT_ATOL) -> "Column":
-    """Compares a column for approximate equality with zero.
+def float_zero(s: "NumericValue", atol: float = DEFAULT_ATOL) -> "BooleanValue":
+    """Compares a numeric expression for approximate equality with zero.
 
     Args:
-        s (Column): Column to compare with zero.
+        s (NumericValue): Expression to compare with zero.
         atol (float, optional): Absolute tolerance for comparison. Defaults to 0.000001.
 
     Returns:
-        Column: Column of boolean indicating approximate equality with zero
+        BooleanValue: Boolean expression indicating approximate equality with zero
     """
     return float_equal(s, ibis.literal(0.0), atol=atol)
 
 
 def correct_float_approx(
-    series: "Column", s1: "Column", s2: "Column", atol: float = DEFAULT_ATOL
+    series: "Column",
+    s1: "NumericValue",
+    s2: "NumericValue",
+    atol: float = DEFAULT_ATOL,
 ) -> "Column":
     """Changes values of a column to null when the corresponding entries in the two other
     columns are numerically very close.
 
     Args:
         series (Column): Column to correct
-        s1 (Column): First column to compare
-        s2 (Column): Second column to compare
+        s1 (NumericValue): First expression to compare
+        s2 (NumericValue): Second expression to compare
         atol (float, optional): Absolute tolerance for comparison. Defaults to 0.000001.
 
     Returns:

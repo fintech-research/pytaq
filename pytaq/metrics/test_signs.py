@@ -2,7 +2,7 @@ import ibis
 import pandas as pd
 import pytest
 
-from .signs import sign_bjz, sign_clnv, sign_emo, sign_lr, sign_tick
+from .signs import sign_bjz, sign_clnv, sign_emo, sign_lr
 
 
 @pytest.fixture
@@ -143,12 +143,14 @@ def test_sign_bjz_edge_cases(con):
 
 def test_sign_lr_basic(con):
     """Test Lee-Ready sign classification."""
-    data = pd.DataFrame({
-        "price": [100.5, 99.5, 100.0, 100.0],
-        "midpoint": [100.0, 100.0, 100.0, 100.0],
-        "tick_dir": [1, -1, 1, -1],
-        "lock_cross": [False, False, False, True],
-    })
+    data = pd.DataFrame(
+        {
+            "price": [100.5, 99.5, 100.0, 100.0],
+            "midpoint": [100.0, 100.0, 100.0, 100.0],
+            "tick_dir": [1, -1, 1, -1],
+            "lock_cross": [False, False, False, True],
+        }
+    )
     table = con.create_table("test", data)
 
     result = table.mutate(
@@ -167,18 +169,24 @@ def test_sign_lr_basic(con):
 
 def test_sign_emo_basic(con):
     """Test EMO sign classification."""
-    data = pd.DataFrame({
-        "price": [100.5, 99.5, 100.2, 100.5],
-        "best_bid": [99.5, 99.5, 99.5, 99.5],
-        "best_ask": [100.5, 100.5, 100.5, 100.5],
-        "tick_dir": [1, -1, 1, -1],
-        "lock_cross": [False, False, False, True],
-    })
+    data = pd.DataFrame(
+        {
+            "price": [100.5, 99.5, 100.2, 100.5],
+            "best_bid": [99.5, 99.5, 99.5, 99.5],
+            "best_ask": [100.5, 100.5, 100.5, 100.5],
+            "tick_dir": [1, -1, 1, -1],
+            "lock_cross": [False, False, False, True],
+        }
+    )
     table = con.create_table("test", data)
 
     result = table.mutate(
         emo_sign=sign_emo(
-            table.price, table.best_bid, table.best_ask, table.tick_dir, table.lock_cross
+            table.price,
+            table.best_bid,
+            table.best_ask,
+            table.tick_dir,
+            table.lock_cross,
         )
     ).execute()
 
@@ -194,14 +202,16 @@ def test_sign_emo_basic(con):
 
 def test_sign_clnv_basic(con):
     """Test CLNV sign classification."""
-    data = pd.DataFrame({
-        # Spread = 1.0, threshold 0.3 means ±0.3 from bid/ask
-        "price": [100.4, 99.6, 100.0, 100.5],
-        "best_bid": [99.5, 99.5, 99.5, 99.5],
-        "best_ask": [100.5, 100.5, 100.5, 100.5],
-        "tick_dir": [1, -1, 1, -1],
-        "lock_cross": [False, False, False, True],
-    })
+    data = pd.DataFrame(
+        {
+            # Spread = 1.0, threshold 0.3 means ±0.3 from bid/ask
+            "price": [100.4, 99.6, 100.0, 100.5],
+            "best_bid": [99.5, 99.5, 99.5, 99.5],
+            "best_ask": [100.5, 100.5, 100.5, 100.5],
+            "tick_dir": [1, -1, 1, -1],
+            "lock_cross": [False, False, False, True],
+        }
+    )
     table = con.create_table("test", data)
 
     result = table.mutate(

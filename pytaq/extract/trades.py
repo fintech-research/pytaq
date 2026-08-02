@@ -1,5 +1,5 @@
 from datetime import date, datetime, time
-from typing import TYPE_CHECKING, List, Optional, Union
+from typing import TYPE_CHECKING
 
 from ..hj_defaults import HJ_END_TIME_TRADES, HJ_START_TIME_TRADES
 from .common import merge_datetime, merge_symbol
@@ -33,7 +33,7 @@ TRADES_COLS_CLEAN = [
 ]
 
 
-def get_trade_table(date: Union[datetime, date]) -> str:
+def get_trade_table(date: datetime | date) -> str:
     """Returns the trade table name for a given date for TAQ in WRDS
 
     Args:
@@ -46,11 +46,11 @@ def get_trade_table(date: Union[datetime, date]) -> str:
 
 
 def get_trades_sql_query(
-    date: Union[datetime, date],
-    library: Optional[str] = None,
-    symbols: Optional[List[str]] = None,
-    start_time: Optional[Union[datetime, time]] = HJ_START_TIME_TRADES,
-    end_time: Optional[Union[datetime, time]] = HJ_END_TIME_TRADES,
+    date: datetime | date,
+    library: str | None = None,
+    symbols: list[str] | None = None,
+    start_time: datetime | time | None = HJ_START_TIME_TRADES,
+    end_time: datetime | time | None = HJ_END_TIME_TRADES,
 ) -> str:
     """Returns a SQL query to retreive trades from TAQ in WRDS
 
@@ -93,12 +93,12 @@ def clean_trade_table(trades: "Table") -> "Table":
 
 
 def get_trades(
-    date: Union[datetime, date],
+    date: datetime | date,
     conn: "wrds.sql.Connection",
-    library: Optional[str] = None,
-    symbols: Optional[List[str]] = None,
-    start_time: Optional[Union[datetime, time]] = HJ_START_TIME_TRADES,
-    end_time: Optional[Union[datetime, time]] = HJ_END_TIME_TRADES,
+    library: str | None = None,
+    symbols: list[str] | None = None,
+    start_time: datetime | time | None = HJ_START_TIME_TRADES,
+    end_time: datetime | time | None = HJ_END_TIME_TRADES,
 ) -> "Table":
     """Retreives and cleans trades from TAQ in WRDS
 

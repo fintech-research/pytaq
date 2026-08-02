@@ -4,7 +4,6 @@ import ibis
 import pandas as pd
 import pytest
 
-from ..hj_defaults import HJ_END_TIME_TRADES, HJ_START_TIME_TRADES
 from .trades import TRADES_COLS_CLEAN, clean_trades
 
 

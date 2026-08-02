@@ -26,13 +26,13 @@ def test_locked_rows_basic(con):
     result = table.mutate(is_locked=locked_rows(table.ask, table.bid)).execute()
 
     # First row: exact match
-    assert result["is_locked"].iloc[0] == True
+    assert result["is_locked"].iloc[0]
     # Second row: different
-    assert result["is_locked"].iloc[1] == False
+    assert not result["is_locked"].iloc[1]
     # Third row: within tolerance
-    assert result["is_locked"].iloc[2] == True
+    assert result["is_locked"].iloc[2]
     # Fourth row: different
-    assert result["is_locked"].iloc[3] == False
+    assert not result["is_locked"].iloc[3]
 
 
 def test_crossed_rows_basic(con):
@@ -46,13 +46,13 @@ def test_crossed_rows_basic(con):
     result = table.mutate(is_crossed=crossed_rows(table.ask, table.bid)).execute()
 
     # First row: ask < bid (crossed)
-    assert result["is_crossed"].iloc[0] == True
+    assert result["is_crossed"].iloc[0]
     # Second row: normal
-    assert result["is_crossed"].iloc[1] == False
+    assert not result["is_crossed"].iloc[1]
     # Third row: normal
-    assert result["is_crossed"].iloc[2] == False
+    assert not result["is_crossed"].iloc[2]
     # Fourth row: ask < bid (crossed)
-    assert result["is_crossed"].iloc[3] == True
+    assert result["is_crossed"].iloc[3]
 
 
 def test_locked_crossed_rows_basic(con):
@@ -68,15 +68,15 @@ def test_locked_crossed_rows_basic(con):
     ).execute()
 
     # First: crossed (ask < bid)
-    assert result["is_lock_or_cross"].iloc[0] == True
+    assert result["is_lock_or_cross"].iloc[0]
     # Second: locked (ask == bid)
-    assert result["is_lock_or_cross"].iloc[1] == True
+    assert result["is_lock_or_cross"].iloc[1]
     # Third: normal
-    assert result["is_lock_or_cross"].iloc[2] == False
+    assert not result["is_lock_or_cross"].iloc[2]
     # Fourth: crossed (ask < bid)
-    assert result["is_lock_or_cross"].iloc[3] == True
+    assert result["is_lock_or_cross"].iloc[3]
     # Fifth: normal
-    assert result["is_lock_or_cross"].iloc[4] == False
+    assert not result["is_lock_or_cross"].iloc[4]
 
 
 def test_filter_locks_crosses(con):
@@ -109,11 +109,11 @@ def test_locked_rows_with_floats(con):
     result = table.mutate(is_locked=locked_rows(table.ask, table.bid)).execute()
 
     # First: exact match
-    assert result["is_locked"].iloc[0] == True
+    assert result["is_locked"].iloc[0]
     # Second: within float tolerance
-    assert result["is_locked"].iloc[1] == True
+    assert result["is_locked"].iloc[1]
     # Third: within float tolerance
-    assert result["is_locked"].iloc[2] == True
+    assert result["is_locked"].iloc[2]
 
 
 def test_crossed_rows_edge_cases(con):
@@ -127,11 +127,11 @@ def test_crossed_rows_edge_cases(con):
     result = table.mutate(is_crossed=crossed_rows(table.ask, table.bid)).execute()
 
     # First: clearly crossed
-    assert result["is_crossed"].iloc[0] == True
+    assert result["is_crossed"].iloc[0]
     # Second: not crossed (equal, but not less than)
-    assert result["is_crossed"].iloc[1] == False
+    assert not result["is_crossed"].iloc[1]
     # Third: crossed
-    assert result["is_crossed"].iloc[2] == True
+    assert result["is_crossed"].iloc[2]
 
 
 def test_filter_locks_crosses_preserves_columns(con):

@@ -1,5 +1,6 @@
+from collections.abc import Iterable
 from datetime import date, datetime, time
-from typing import TYPE_CHECKING, Iterable, List, Optional, Union
+from typing import TYPE_CHECKING
 
 from ..hj_defaults import (
     HJ_END_TIME_QUOTES,
@@ -46,7 +47,7 @@ QUOTES_COLS_CLEAN = [
 QUOTES_COLS_FLAGS = ["qu_cond", "natbbo_ind", "qu_source", "qu_cancel"]
 
 
-def get_quotes_table(date: Union[datetime, date]) -> str:
+def get_quotes_table(date: datetime | date) -> str:
     """Returns the quotes table name for a given date for TAQ in WRDS
 
     Args:
@@ -59,11 +60,11 @@ def get_quotes_table(date: Union[datetime, date]) -> str:
 
 
 def get_quotes_sql_query(
-    date: Union[datetime, date],
-    library: Optional[str] = None,
-    symbols: Optional[List[str]] = None,
-    start_time: Optional[Union[datetime, time]] = HJ_START_TIME_QUOTES,
-    end_time: Optional[Union[datetime, time]] = HJ_END_TIME_QUOTES,
+    date: datetime | date,
+    library: str | None = None,
+    symbols: list[str] | None = None,
+    start_time: datetime | time | None = HJ_START_TIME_QUOTES,
+    end_time: datetime | time | None = HJ_END_TIME_QUOTES,
 ) -> str:
     """Returns a SQL query to retreive the quotes from TAQ in WRDS
 
@@ -114,7 +115,7 @@ def filter_withdrawned_quotes(quotes: "Table") -> "Table":
 
 def filter_quote_table(
     quotes: "Table",
-    keep_qu_cond: Optional[Iterable[str]] = HJ_KEEP_QU_COND,
+    keep_qu_cond: Iterable[str] | None = HJ_KEEP_QU_COND,
     delete_canceled_quotes: bool = True,
     delete_crossed_markets: bool = True,
     delete_withdrawned_quotes: bool = True,
@@ -173,7 +174,7 @@ def filter_quote_table(
 
 def clean_quote_table(
     quotes: "Table",
-    keep_qu_cond: Optional[Iterable[str]] = HJ_KEEP_QU_COND,
+    keep_qu_cond: Iterable[str] | None = HJ_KEEP_QU_COND,
     delete_canceled_quotes: bool = True,
     delete_crossed_markets: bool = True,
     delete_withdrawned_quotes: bool = True,
@@ -230,13 +231,13 @@ def clean_quote_table(
 
 
 def get_quotes(
-    date: Union[datetime, date],
+    date: datetime | date,
     conn: "wrds.sql.Connection",
-    library: Optional[str] = None,
-    symbols: Optional[List[str]] = None,
-    start_time: Optional[Union[datetime, time]] = HJ_START_TIME_QUOTES,
-    end_time: Optional[Union[datetime, time]] = HJ_END_TIME_QUOTES,
-    keep_qu_cond: Optional[Iterable[str]] = HJ_KEEP_QU_COND,
+    library: str | None = None,
+    symbols: list[str] | None = None,
+    start_time: datetime | time | None = HJ_START_TIME_QUOTES,
+    end_time: datetime | time | None = HJ_END_TIME_QUOTES,
+    keep_qu_cond: Iterable[str] | None = HJ_KEEP_QU_COND,
     delete_canceled_quotes: bool = True,
     delete_crossed_markets: bool = True,
     delete_withdrawned_quotes: bool = True,

@@ -1,5 +1,5 @@
 from datetime import date, datetime, time
-from typing import TYPE_CHECKING, List, Union
+from typing import TYPE_CHECKING, Union
 
 import ibis
 
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 def compute_quote_inforce(
     table: "Table",
     end_timestamp: datetime,
-    groupby_col: Union[str, List[str]] = "symbol",
+    groupby_col: str | list[str] = "symbol",
     timestamp_col: str = "timestamp",
     inforce_col: str = "inforce",
 ) -> "Table":
@@ -80,8 +80,8 @@ def compute_spreads(table: "Table") -> "Table":
 
 def compute_weighted_averages(
     table: "Table",
-    measures: List[str],
-    groupby_col: Union[str, List[str]] = "symbol",
+    measures: list[str],
+    groupby_col: str | list[str] = "symbol",
     inforce_col: str = "inforce",
 ) -> "Table":
     """Compute weighted averages for measures.

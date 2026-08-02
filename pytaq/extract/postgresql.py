@@ -1,14 +1,11 @@
 from datetime import datetime, time
-from typing import List, Optional, Union
 
 from ..utils.time_to_sql import time_to_sql
 
 DEFAULT_LIBRARY = "taqmsec"
 
 
-def select_statement(
-    columns: List[str], table: str, library: Optional[str] = None
-) -> str:
+def select_statement(columns: list[str], table: str, library: str | None = None) -> str:
     """Returns a SQL select statement to retreive a list of columns from a WRDS table
 
     Args:
@@ -24,7 +21,7 @@ def select_statement(
     return f"SELECT {', '.join(columns)} FROM {library}.{table}"
 
 
-def symbol_condition(symbols: Optional[List[str]] = None) -> str:
+def symbol_condition(symbols: list[str] | None = None) -> str:
     """Returns a SQL where condition to select the symbols and exclude symbols with no suffixes
 
     Args:
@@ -42,8 +39,8 @@ def symbol_condition(symbols: Optional[List[str]] = None) -> str:
 
 
 def time_condition(
-    start_time: Optional[Union[datetime, time]] = None,
-    end_time: Optional[Union[datetime, time]] = None,
+    start_time: datetime | time | None = None,
+    end_time: datetime | time | None = None,
 ) -> str:
     """Returns a SQL condition to filter on time
 
@@ -71,12 +68,12 @@ def time_condition(
 
 
 def build_sql_query(
-    columns: List[str],
+    columns: list[str],
     table: str,
-    library: Optional[str] = None,
-    symbols: Optional[List[str]] = None,
-    start_time: Optional[Union[datetime, time]] = None,
-    end_time: Optional[Union[datetime, time]] = None,
+    library: str | None = None,
+    symbols: list[str] | None = None,
+    start_time: datetime | time | None = None,
+    end_time: datetime | time | None = None,
     extra_condition: str = "",
 ) -> str:
     """Returns a SQL query statement to retreive a filtered list of columns from a WRDS table

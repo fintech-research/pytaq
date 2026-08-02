@@ -1,5 +1,6 @@
+from collections.abc import Iterable
 from datetime import date, datetime, time
-from typing import TYPE_CHECKING, Iterable, List, Optional, Union
+from typing import TYPE_CHECKING
 
 import ibis
 
@@ -55,7 +56,7 @@ NBBO_COLS_FLAGS = [
 ]
 
 
-def get_nbbo_table(date: Union[datetime, date]) -> str:
+def get_nbbo_table(date: datetime | date) -> str:
     """Returns the NBBO table name for a given date for TAQ in WRDS
 
     Args:
@@ -68,11 +69,11 @@ def get_nbbo_table(date: Union[datetime, date]) -> str:
 
 
 def get_nbbo_sql_query(
-    date: Union[datetime, date],
-    library: Optional[str] = None,
-    symbols: Optional[List[str]] = None,
-    start_time: Optional[Union[datetime, time]] = HJ_START_TIME_QUOTES,
-    end_time: Optional[Union[datetime, time]] = HJ_END_TIME_QUOTES,
+    date: datetime | date,
+    library: str | None = None,
+    symbols: list[str] | None = None,
+    start_time: datetime | time | None = HJ_START_TIME_QUOTES,
+    end_time: datetime | time | None = HJ_END_TIME_QUOTES,
 ) -> str:
     """Returns a SQL query to retreive the NBBO from TAQ in WRDS
 
@@ -311,12 +312,12 @@ def clean_nbbo_table(
 
 
 def get_nbbo(
-    date: Union[datetime, date],
+    date: datetime | date,
     conn: "wrds.sql.Connection",
-    library: Optional[str] = None,
-    symbols: Optional[List[str]] = None,
-    start_time: Optional[Union[datetime, time]] = HJ_START_TIME_QUOTES,
-    end_time: Optional[Union[datetime, time]] = HJ_END_TIME_QUOTES,
+    library: str | None = None,
+    symbols: list[str] | None = None,
+    start_time: datetime | time | None = HJ_START_TIME_QUOTES,
+    end_time: datetime | time | None = HJ_END_TIME_QUOTES,
     keep_qu_cond: Iterable[str] = HJ_KEEP_QU_COND,
     delete_canceled_quotes: bool = HJ_DELETE_CANCELED_QUOTES,
     delete_empty_quotes: bool = HJ_DELETE_EMPTY_QUOTES,

@@ -3,10 +3,10 @@ from typing import TYPE_CHECKING
 from ..utils.float_approx import float_equal
 
 if TYPE_CHECKING:
-    from ibis.expr.types import Column, Table
+    from ibis.expr.types import BooleanValue, Column, Table
 
 
-def locked_rows(asks: "Column", bids: "Column") -> "Column":
+def locked_rows(asks: "Column", bids: "Column") -> "BooleanValue":
     """Identifies rows with a market lock (equal bid and ask)
 
     Args:
@@ -14,12 +14,12 @@ def locked_rows(asks: "Column", bids: "Column") -> "Column":
         bids (Column): Bid quotes
 
     Returns:
-        Column: Column of boolean indicating the lock status
+        BooleanValue: Boolean expression indicating the lock status
     """
     return float_equal(s1=asks, s2=bids)
 
 
-def crossed_rows(asks: "Column", bids: "Column") -> "Column":
+def crossed_rows(asks: "Column", bids: "Column") -> "BooleanValue":
     """Identifies rows with a market cross (ask lower than bid)
 
     Args:
@@ -27,12 +27,12 @@ def crossed_rows(asks: "Column", bids: "Column") -> "Column":
         bids (Column): Bid quotes
 
     Returns:
-        Column: Column of boolean indicating the cross status
+        BooleanValue: Boolean expression indicating the cross status
     """
     return asks < bids
 
 
-def locked_crossed_rows(asks: "Column", bids: "Column") -> "Column":
+def locked_crossed_rows(asks: "Column", bids: "Column") -> "BooleanValue":
     """Identifies rows with a market lock or cross (ask lower or equal to bid)
 
     Args:
@@ -40,7 +40,7 @@ def locked_crossed_rows(asks: "Column", bids: "Column") -> "Column":
         bids (Column): Bid quotes
 
     Returns:
-        Column: Column of boolean indicating the lock/cross status
+        BooleanValue: Boolean expression indicating the lock/cross status
     """
     return locked_rows(asks, bids) | crossed_rows(asks, bids)
 

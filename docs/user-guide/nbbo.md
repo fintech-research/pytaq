@@ -48,7 +48,7 @@ nbbo = extract_nbbo(
     con=con,
     source_path="/path/to/taq/data",
     date=date(2023, 1, 15),
-    symbols=["AAPL", "MSFT", "GOOGL"]
+    symbols=["AAPL", "MSFT", "GOOGL"],
 )
 
 # View the data
@@ -64,10 +64,7 @@ from pytaq.extract.official_nbbo import extract_official_nbbo
 
 # Extract official NBBO
 official_nbbo = extract_official_nbbo(
-    con=con,
-    source_path="/path/to/taq/data",
-    date=date(2023, 1, 15),
-    symbols=["AAPL"]
+    con=con, source_path="/path/to/taq/data", date=date(2023, 1, 15), symbols=["AAPL"]
 )
 
 # Compare columns
@@ -84,15 +81,14 @@ from pytaq.cleaning.nbbo import clean_nbbo_table
 from decimal import Decimal
 
 # Clean NBBO data
-clean_nbbo = clean_nbbo_table(
-    table=nbbo,
-    max_spread=Decimal("5.0")
-)
+clean_nbbo = clean_nbbo_table(table=nbbo, max_spread=Decimal("5.0"))
 
 # Check results
 raw_count = nbbo.count().execute()
 clean_count = clean_nbbo.count().execute()
-print(f"Removed {raw_count - clean_count} records ({100*(1-clean_count/raw_count):.1f}%)")
+print(
+    f"Removed {raw_count - clean_count} records ({100 * (1 - clean_count / raw_count):.1f}%)"
+)
 ```
 
 ### Handling Market Anomalies
@@ -104,14 +100,12 @@ from pytaq.metrics.locks_crosses import compute_locks_crosses
 nbbo_with_quality = compute_locks_crosses(nbbo)
 
 # Filter out crossed markets
-valid_nbbo = nbbo_with_quality.filter(
-    nbbo_with_quality["is_crossed"] == False
-)
+valid_nbbo = nbbo_with_quality.filter(nbbo_with_quality["is_crossed"] == False)
 
 # Keep locked but not crossed
 keep_locked = nbbo_with_quality.filter(
-    (nbbo_with_quality["is_crossed"] == False) &
-    (nbbo_with_quality["is_locked"] == True)
+    (nbbo_with_quality["is_crossed"] == False)
+    & (nbbo_with_quality["is_locked"] == True)
 )
 ```
 
@@ -134,7 +128,7 @@ daily_spread = nbbo_spreads.group_by(["symbol", "date"]).aggregate(
     avg_spread_dollar=nbbo_spreads["quoted_spread_dollar"].mean(),
     avg_spread_bps=nbbo_spreads["quoted_spread_bps"].mean(),
     min_spread=nbbo_spreads["quoted_spread_dollar"].min(),
-    max_spread=nbbo_spreads["quoted_spread_dollar"].max()
+    max_spread=nbbo_spreads["quoted_spread_dollar"].max(),
 )
 
 print(daily_spread.execute())
@@ -150,7 +144,7 @@ twa_nbbo_spread = time_weighted_average(
     table=nbbo_spreads,
     value_col="quoted_spread_dollar",
     time_col="timestamp",
-    group_cols=["symbol", "date"]
+    group_cols=["symbol", "date"],
 )
 
 result = twa_nbbo_spread.execute()
@@ -161,13 +155,21 @@ print(result[["symbol", "date", "twa_quoted_spread_dollar"]])
 
 ```python
 # Calculate percentage of time in locked/crossed states
-quality_summary = nbbo_with_quality.group_by(["symbol", "date"]).aggregate(
-    total_observations=nbbo_with_quality["symbol"].count(),
-    locked_observations=(nbbo_with_quality["is_locked"] == True).sum(),
-    crossed_observations=(nbbo_with_quality["is_crossed"] == True).sum()
-).mutate(
-    pct_locked=100.0 * nbbo_with_quality["locked_observations"] / nbbo_with_quality["total_observations"],
-    pct_crossed=100.0 * nbbo_with_quality["crossed_observations"] / nbbo_with_quality["total_observations"]
+quality_summary = (
+    nbbo_with_quality.group_by(["symbol", "date"])
+    .aggregate(
+        total_observations=nbbo_with_quality["symbol"].count(),
+        locked_observations=(nbbo_with_quality["is_locked"] == True).sum(),
+        crossed_observations=(nbbo_with_quality["is_crossed"] == True).sum(),
+    )
+    .mutate(
+        pct_locked=100.0
+        * nbbo_with_quality["locked_observations"]
+        / nbbo_with_quality["total_observations"],
+        pct_crossed=100.0
+        * nbbo_with_quality["crossed_observations"]
+        / nbbo_with_quality["total_observations"],
+    )
 )
 
 print(quality_summary.execute())
@@ -189,9 +191,9 @@ trades_with_nbbo = trades.join(
     nbbo,
     predicates=[
         trades["symbol"] == nbbo["symbol"],
-        trades["timestamp"] == nbbo["timestamp"]
+        trades["timestamp"] == nbbo["timestamp"],
     ],
-    how="left"
+    how="left",
 )
 
 # Compute price improvement
@@ -199,19 +201,24 @@ trades_analyzed = trades_with_nbbo.mutate(
     # For buy trades: NBBO ask - execution price
     # For sell trades: execution price - NBBO bid
     price_improvement=ibis.case()
-        .when(trades_with_nbbo["trade_sign"] == 1,
-              trades_with_nbbo["best_ask"] - trades_with_nbbo["price"])
-        .when(trades_with_nbbo["trade_sign"] == -1,
-              trades_with_nbbo["price"] - trades_with_nbbo["best_bid"])
-        .else_(None)
-        .end()
+    .when(
+        trades_with_nbbo["trade_sign"] == 1,
+        trades_with_nbbo["best_ask"] - trades_with_nbbo["price"],
+    )
+    .when(
+        trades_with_nbbo["trade_sign"] == -1,
+        trades_with_nbbo["price"] - trades_with_nbbo["best_bid"],
+    )
+    .else_(None)
+    .end()
 )
 
 # Summary statistics
 improvement_stats = trades_analyzed.aggregate(
     avg_improvement=trades_analyzed["price_improvement"].mean(),
-    pct_improved=(trades_analyzed["price_improvement"] > 0).sum() / trades_analyzed["symbol"].count(),
-    total_savings=trades_analyzed["price_improvement"].sum()
+    pct_improved=(trades_analyzed["price_improvement"] > 0).sum()
+    / trades_analyzed["symbol"].count(),
+    total_savings=trades_analyzed["price_improvement"].sum(),
 )
 
 print(improvement_stats.execute())
@@ -224,20 +231,28 @@ print(improvement_stats.execute())
 # Buy trade above NBBO ask or sell trade below NBBO bid
 trade_throughs = trades_with_nbbo.mutate(
     is_trade_through=ibis.case()
-        .when((trades_with_nbbo["trade_sign"] == 1) &
-              (trades_with_nbbo["price"] > trades_with_nbbo["best_ask"]), True)
-        .when((trades_with_nbbo["trade_sign"] == -1) &
-              (trades_with_nbbo["price"] < trades_with_nbbo["best_bid"]), True)
-        .else_(False)
-        .end()
+    .when(
+        (trades_with_nbbo["trade_sign"] == 1)
+        & (trades_with_nbbo["price"] > trades_with_nbbo["best_ask"]),
+        True,
+    )
+    .when(
+        (trades_with_nbbo["trade_sign"] == -1)
+        & (trades_with_nbbo["price"] < trades_with_nbbo["best_bid"]),
+        True,
+    )
+    .else_(False)
+    .end()
 )
 
 # Count trade-throughs
 tt_summary = trade_throughs.aggregate(
     total_trades=trade_throughs["symbol"].count(),
-    trade_throughs=(trade_throughs["is_trade_through"] == True).sum()
+    trade_throughs=(trade_throughs["is_trade_through"] == True).sum(),
 ).mutate(
-    pct_trade_through=100.0 * trade_throughs["trade_throughs"] / trade_throughs["total_trades"]
+    pct_trade_through=100.0
+    * trade_throughs["trade_throughs"]
+    / trade_throughs["total_trades"]
 )
 
 print(tt_summary.execute())
@@ -257,19 +272,17 @@ comparison = computed_nbbo.join(
     official_nbbo,
     predicates=[
         computed_nbbo["symbol"] == official_nbbo["symbol"],
-        computed_nbbo["timestamp"] == official_nbbo["timestamp"]
+        computed_nbbo["timestamp"] == official_nbbo["timestamp"],
     ],
     how="inner",
-    suffixes=("_computed", "_official")
+    suffixes=("_computed", "_official"),
 )
 
 # Check for differences
 differences = comparison.mutate(
     bid_diff=comparison["best_bid_computed"] - comparison["best_bid_official"],
-    ask_diff=comparison["best_ask_computed"] - comparison["best_ask_official"]
-).filter(
-    (comparison["bid_diff"] != 0) | (comparison["ask_diff"] != 0)
-)
+    ask_diff=comparison["best_ask_computed"] - comparison["best_ask_official"],
+).filter((comparison["bid_diff"] != 0) | (comparison["ask_diff"] != 0))
 
 print(f"Total comparisons: {comparison.count().execute()}")
 print(f"Differences found: {differences.count().execute()}")
@@ -282,8 +295,12 @@ print(f"Differences found: {differences.count().execute()}")
 validation = comparison.aggregate(
     bid_corr=comparison["best_bid_computed"].corr(comparison["best_bid_official"]),
     ask_corr=comparison["best_ask_computed"].corr(comparison["best_ask_official"]),
-    mean_bid_diff=(comparison["best_bid_computed"] - comparison["best_bid_official"]).mean(),
-    mean_ask_diff=(comparison["best_ask_computed"] - comparison["best_ask_official"]).mean()
+    mean_bid_diff=(
+        comparison["best_bid_computed"] - comparison["best_bid_official"]
+    ).mean(),
+    mean_ask_diff=(
+        comparison["best_ask_computed"] - comparison["best_ask_official"]
+    ).mean(),
 )
 
 print(validation.execute())
@@ -297,18 +314,15 @@ print(validation.execute())
 from datetime import time
 
 # Add hour column
-nbbo_hourly = nbbo_spreads.mutate(
-    hour=nbbo_spreads["timestamp"].hour()
-).filter(
-    (nbbo_spreads["timestamp"].hour() >= 9) &
-    (nbbo_spreads["timestamp"].hour() <= 16)
+nbbo_hourly = nbbo_spreads.mutate(hour=nbbo_spreads["timestamp"].hour()).filter(
+    (nbbo_spreads["timestamp"].hour() >= 9) & (nbbo_spreads["timestamp"].hour() <= 16)
 )
 
 # Aggregate by hour
 hourly_patterns = nbbo_hourly.group_by(["symbol", "hour"]).aggregate(
     avg_spread=nbbo_hourly["quoted_spread_dollar"].mean(),
     avg_midpoint=((nbbo_hourly["best_bid"] + nbbo_hourly["best_ask"]) / 2).mean(),
-    num_updates=nbbo_hourly["symbol"].count()
+    num_updates=nbbo_hourly["symbol"].count(),
 )
 
 result = hourly_patterns.order_by(["symbol", "hour"]).execute()
@@ -319,23 +333,27 @@ print(result)
 
 ```python
 # Opening spreads (9:30-10:00 AM)
-opening = nbbo_spreads.filter(
-    (nbbo_spreads["timestamp"].hour() == 9) &
-    (nbbo_spreads["timestamp"].minute() >= 30) |
-    (nbbo_spreads["timestamp"].hour() == 10) &
-    (nbbo_spreads["timestamp"].minute() < 0)
-).group_by("symbol").aggregate(
-    avg_opening_spread=nbbo_spreads["quoted_spread_dollar"].mean()
+opening = (
+    nbbo_spreads.filter(
+        (nbbo_spreads["timestamp"].hour() == 9)
+        & (nbbo_spreads["timestamp"].minute() >= 30)
+        | (nbbo_spreads["timestamp"].hour() == 10)
+        & (nbbo_spreads["timestamp"].minute() < 0)
+    )
+    .group_by("symbol")
+    .aggregate(avg_opening_spread=nbbo_spreads["quoted_spread_dollar"].mean())
 )
 
 # Closing spreads (3:30-4:00 PM)
-closing = nbbo_spreads.filter(
-    (nbbo_spreads["timestamp"].hour() == 15) &
-    (nbbo_spreads["timestamp"].minute() >= 30) |
-    (nbbo_spreads["timestamp"].hour() == 16) &
-    (nbbo_spreads["timestamp"].minute() == 0)
-).group_by("symbol").aggregate(
-    avg_closing_spread=nbbo_spreads["quoted_spread_dollar"].mean()
+closing = (
+    nbbo_spreads.filter(
+        (nbbo_spreads["timestamp"].hour() == 15)
+        & (nbbo_spreads["timestamp"].minute() >= 30)
+        | (nbbo_spreads["timestamp"].hour() == 16)
+        & (nbbo_spreads["timestamp"].minute() == 0)
+    )
+    .group_by("symbol")
+    .aggregate(avg_closing_spread=nbbo_spreads["quoted_spread_dollar"].mean())
 )
 
 # Combine
@@ -350,21 +368,16 @@ print(open_close.execute())
 ```python
 # Compute time between NBBO updates
 nbbo_updates = nbbo.mutate(
-    prev_timestamp=nbbo["timestamp"].lag().over(
-        ibis.window(
-            group_by="symbol",
-            order_by="timestamp"
-        )
-    )
-).mutate(
-    time_delta=(nbbo["timestamp"] - nbbo["prev_timestamp"]).total_seconds()
-)
+    prev_timestamp=nbbo["timestamp"]
+    .lag()
+    .over(ibis.window(group_by="symbol", order_by="timestamp"))
+).mutate(time_delta=(nbbo["timestamp"] - nbbo["prev_timestamp"]).total_seconds())
 
 # Summary statistics
 update_stats = nbbo_updates.group_by("symbol").aggregate(
     avg_time_between_updates=nbbo_updates["time_delta"].mean(),
     median_time=nbbo_updates["time_delta"].approx_median(),
-    updates_per_second=1.0 / nbbo_updates["time_delta"].mean()
+    updates_per_second=1.0 / nbbo_updates["time_delta"].mean(),
 )
 
 print(update_stats.execute())
@@ -394,7 +407,7 @@ effective = compute_effective_spread(
     table=signed_trades,
     price_col="price",
     midpoint_col="midpoint",
-    sign_col="trade_sign"
+    sign_col="trade_sign",
 )
 
 # 5. Best execution metrics
@@ -402,16 +415,20 @@ execution_report = effective.group_by("symbol").aggregate(
     # Spread metrics
     avg_nbbo_spread=effective["quoted_spread_dollar"].mean(),
     avg_eff_spread=effective["eff_spread_dollar"].mean(),
-
     # Execution quality
-    pct_at_nbbo=((effective["price"] == effective["best_bid"]) |
-                 (effective["price"] == effective["best_ask"])).sum() / effective["symbol"].count(),
-    pct_inside_nbbo=((effective["price"] > effective["best_bid"]) &
-                     (effective["price"] < effective["best_ask"])).sum() / effective["symbol"].count(),
-
+    pct_at_nbbo=(
+        (effective["price"] == effective["best_bid"])
+        | (effective["price"] == effective["best_ask"])
+    ).sum()
+    / effective["symbol"].count(),
+    pct_inside_nbbo=(
+        (effective["price"] > effective["best_bid"])
+        & (effective["price"] < effective["best_ask"])
+    ).sum()
+    / effective["symbol"].count(),
     # Volume metrics
     total_volume=effective["volume"].sum(),
-    num_trades=effective["symbol"].count()
+    num_trades=effective["symbol"].count(),
 )
 
 print(execution_report.execute())
@@ -433,22 +450,26 @@ def daily_nbbo_summary(con, path, date_val, symbols):
     quality = compute_locks_crosses(clean)
 
     # Daily aggregates
-    summary = spreads.join(quality, ["symbol", "timestamp"]).group_by("symbol").aggregate(
-        # Spread metrics
-        avg_spread_dollar=spreads["quoted_spread_dollar"].mean(),
-        avg_spread_bps=spreads["quoted_spread_bps"].mean(),
-        min_spread=spreads["quoted_spread_dollar"].min(),
-        max_spread=spreads["quoted_spread_dollar"].max(),
-
-        # Quality metrics
-        pct_locked=(quality["is_locked"] == True).sum() / quality["symbol"].count(),
-        pct_crossed=(quality["is_crossed"] == True).sum() / quality["symbol"].count(),
-
-        # Update metrics
-        num_updates=spreads["symbol"].count()
+    summary = (
+        spreads.join(quality, ["symbol", "timestamp"])
+        .group_by("symbol")
+        .aggregate(
+            # Spread metrics
+            avg_spread_dollar=spreads["quoted_spread_dollar"].mean(),
+            avg_spread_bps=spreads["quoted_spread_bps"].mean(),
+            min_spread=spreads["quoted_spread_dollar"].min(),
+            max_spread=spreads["quoted_spread_dollar"].max(),
+            # Quality metrics
+            pct_locked=(quality["is_locked"] == True).sum() / quality["symbol"].count(),
+            pct_crossed=(quality["is_crossed"] == True).sum()
+            / quality["symbol"].count(),
+            # Update metrics
+            num_updates=spreads["symbol"].count(),
+        )
     )
 
     return summary.execute()
+
 
 # Use it
 summary = daily_nbbo_summary(con, "/path/to/data", date(2023, 1, 15), ["AAPL", "MSFT"])

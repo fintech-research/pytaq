@@ -21,7 +21,7 @@ expected_result = {
 
 
 @pytest.mark.parametrize(
-    "quotes, expected",
+    ("quotes", "expected"),
     [(sample_data, expected_result)],
 )
 def test_filter_withdrawned_quotes(quotes, expected):

@@ -5,7 +5,6 @@ import ibis
 import pandas as pd
 import pytest
 
-from ..hj_defaults import HJ_KEEP_QU_COND, HJ_MAX_SPREAD
 from .quotes import (
     QUOTES_COLS_CLEAN,
     clean_quote_table,

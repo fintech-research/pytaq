@@ -18,11 +18,13 @@ def con():
 
 def test_dollar_realized_spread_basic(con):
     """Test dollar realized spread computation."""
-    data = pd.DataFrame({
-        "sign": [1, -1, 1],
-        "price": [100.5, 99.5, 100.0],
-        "midpoint_next": [100.0, 100.0, 100.0],
-    })
+    data = pd.DataFrame(
+        {
+            "sign": [1, -1, 1],
+            "price": [100.5, 99.5, 100.0],
+            "midpoint_next": [100.0, 100.0, 100.0],
+        }
+    )
     table = con.create_table("test", data)
 
     result = table.mutate(
@@ -40,11 +42,13 @@ def test_dollar_realized_spread_basic(con):
 
 def test_percent_realized_spread_basic(con):
     """Test percent realized spread computation."""
-    data = pd.DataFrame({
-        "sign": [1, -1],
-        "price": [101.0, 99.0],
-        "midpoint_next": [100.0, 100.0],
-    })
+    data = pd.DataFrame(
+        {
+            "sign": [1, -1],
+            "price": [101.0, 99.0],
+            "midpoint_next": [100.0, 100.0],
+        }
+    )
     table = con.create_table("test", data)
 
     result = table.mutate(
@@ -53,6 +57,7 @@ def test_percent_realized_spread_basic(con):
 
     # RS% = sign * (log(price) - log(midpoint_next)) * 2
     import math
+
     # First: 1 * (log(101) - log(100)) * 2
     expected1 = (math.log(101.0) - math.log(100.0)) * 2
     assert abs(result["rs_percent"].iloc[0] - expected1) < 1e-6
@@ -64,11 +69,13 @@ def test_percent_realized_spread_basic(con):
 
 def test_dollar_price_impact_basic(con):
     """Test dollar price impact computation."""
-    data = pd.DataFrame({
-        "sign": [1, -1, 1],
-        "midpoint": [100.0, 100.0, 100.0],
-        "midpoint_next": [100.5, 99.5, 100.0],
-    })
+    data = pd.DataFrame(
+        {
+            "sign": [1, -1, 1],
+            "midpoint": [100.0, 100.0, 100.0],
+            "midpoint_next": [100.5, 99.5, 100.0],
+        }
+    )
     table = con.create_table("test", data)
 
     result = table.mutate(
@@ -86,11 +93,13 @@ def test_dollar_price_impact_basic(con):
 
 def test_percent_price_impact_basic(con):
     """Test percent price impact computation."""
-    data = pd.DataFrame({
-        "sign": [1, -1],
-        "midpoint": [100.0, 100.0],
-        "midpoint_next": [101.0, 99.0],
-    })
+    data = pd.DataFrame(
+        {
+            "sign": [1, -1],
+            "midpoint": [100.0, 100.0],
+            "midpoint_next": [101.0, 99.0],
+        }
+    )
     table = con.create_table("test", data)
 
     result = table.mutate(
@@ -99,6 +108,7 @@ def test_percent_price_impact_basic(con):
 
     # PI% = sign * (log(midpoint_next) - log(midpoint)) * 2
     import math
+
     # First: 1 * (log(101) - log(100)) * 2
     expected1 = (math.log(101.0) - math.log(100.0)) * 2
     assert abs(result["pi_percent"].iloc[0] - expected1) < 1e-6
@@ -110,11 +120,13 @@ def test_percent_price_impact_basic(con):
 
 def test_realized_spread_zero_sign(con):
     """Test realized spread with zero sign."""
-    data = pd.DataFrame({
-        "sign": [0, 0],
-        "price": [100.5, 99.5],
-        "midpoint_next": [100.0, 100.0],
-    })
+    data = pd.DataFrame(
+        {
+            "sign": [0, 0],
+            "price": [100.5, 99.5],
+            "midpoint_next": [100.0, 100.0],
+        }
+    )
     table = con.create_table("test", data)
 
     result = table.mutate(
@@ -128,11 +140,13 @@ def test_realized_spread_zero_sign(con):
 
 def test_price_impact_same_midpoints(con):
     """Test price impact when midpoints are equal."""
-    data = pd.DataFrame({
-        "sign": [1, -1],
-        "midpoint": [100.0, 100.0],
-        "midpoint_next": [100.0, 100.0],
-    })
+    data = pd.DataFrame(
+        {
+            "sign": [1, -1],
+            "midpoint": [100.0, 100.0],
+            "midpoint_next": [100.0, 100.0],
+        }
+    )
     table = con.create_table("test", data)
 
     result = table.mutate(

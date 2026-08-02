@@ -1,8 +1,7 @@
 from datetime import datetime, time
-from typing import Union
 
 
-def time_to_sql(ts: Union[datetime, time], quote_char: str = '"') -> str:
+def time_to_sql(ts: datetime | time, quote_char: str = '"') -> str:
     """Converts a time or datetime object to a SQL string representation.
 
     Args:
@@ -12,5 +11,5 @@ def time_to_sql(ts: Union[datetime, time], quote_char: str = '"') -> str:
     Returns:
         str: SQL string representation
     """
-    ms = int(round(ts.microsecond / 1000))
+    ms = round(ts.microsecond / 1000)
     return f"{quote_char}{ts.hour:02}:{ts.minute:02}:{ts.second:02}.{ms:03}{quote_char}"

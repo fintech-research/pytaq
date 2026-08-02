@@ -1,5 +1,5 @@
+from collections.abc import Sequence
 from decimal import Decimal
-from typing import Sequence
 
 import ibis
 
