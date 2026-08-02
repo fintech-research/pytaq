@@ -4,7 +4,7 @@ Thank you for considering contributing to PyTAQ! This guide will help you set up
 
 ## Prerequisites
 
-- Python 3.9 or higher
+- Python 3.11 or higher
 - `uv` package manager
 - Git
 
@@ -18,24 +18,24 @@ git clone https://github.com/YOUR_USERNAME/pytaq.git
 cd pytaq
 
 # Add upstream remote
-git remote add upstream https://github.com/vincentgregoire/pytaq.git
+git remote add upstream https://github.com/fintech-research/pytaq.git
 ```
 
 ### 2. Install Dependencies
 
 ```bash
-# Install all dependencies including dev tools
-uv sync --group dev
+# Installs every backend plus the development tools
+uv sync
 
-# Activate the virtual environment
-source .venv/bin/activate
+# Install the pre-commit hooks. There is no CI, so this is the gate.
+uv run pre-commit install
 ```
 
 ### 3. Verify Installation
 
 ```bash
 # Run tests to ensure everything works
-pytest
+uv run pytest
 
 # Check code formatting
 ruff check
@@ -198,12 +198,12 @@ con = ibis.connect("polars://")
 
 ## Getting Help
 
-- Check existing [issues](https://github.com/vincentgregoire/pytaq/issues)
-- Read the [User Guide](../user-guide/extraction.md)
-- Ask questions in [Discussions](https://github.com/vincentgregoire/pytaq/discussions)
+- Check existing [issues](https://github.com/fintech-research/pytaq/issues)
+- Read the [User Guide](../user-guide/cleaning.md)
+- Ask questions in [Discussions](https://github.com/fintech-research/pytaq/discussions)
 
 ## Next Steps
 
 - Review the [Testing](testing.md) guide
 - Familiarize yourself with the [Code Style](code-style.md)
-- Look for [good first issues](https://github.com/vincentgregoire/pytaq/labels/good%20first%20issue)
+- Look for [good first issues](https://github.com/fintech-research/pytaq/labels/good%20first%20issue)

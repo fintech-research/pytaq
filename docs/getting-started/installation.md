@@ -1,130 +1,41 @@
 # Installation
 
-This guide will help you install PyTAQ and its dependencies.
+PyTAQ requires Python 3.11 or later.
 
-## Requirements
+## Pick your extra
 
-- Python 3.9 or higher
-- `uv` package manager (recommended) or `pip`
-
-## Using uv (Recommended)
-
-PyTAQ uses [uv](https://github.com/astral-sh/uv) for fast, reliable dependency management.
-
-### Install uv
+The Ibis backends are optional, because which one you need depends on where your data lives. Installing plain `pytaq` gives you the cleaning and metrics code but no way to open data.
 
 ```bash
-# On macOS and Linux
-curl -LsSf https://astral.sh/uv/install.sh | sh
+# Local TAQ files
+pip install 'pytaq[duckdb]'
 
-# On Windows
-powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+# WRDS postgres server, on the WRDS cloud or from your own machine
+pip install 'pytaq[postgres]'
+
+# Everything
+pip install 'pytaq[all]'
 ```
 
-### Clone and Install PyTAQ
+With `uv`:
 
 ```bash
-# Clone the repository
-git clone https://github.com/vincentgregoire/pytaq.git
-cd pytaq
+uv add 'pytaq[duckdb]'
+```
 
-# Install dependencies
+Importing `pytaq` always works, whichever extra you chose. Only connecting needs a backend, and if the right one is missing the error says which extra to install.
+
+## Why `polars` is not the local default
+
+There is a `polars` extra, but do not reach for it first. Ibis 12's polars backend implements no window functions, so it cannot run the parts of PyTAQ that need them: trade signing, quote in-force times, NBBO change filtering, or the quotes-to-NBBO merge. Use `duckdb` for local work.
+
+## Development install
+
+```bash
+git clone https://github.com/fintech-research/pytaq.git
+cd pytaq
 uv sync
-
-# Activate the virtual environment
-source .venv/bin/activate  # On Unix/macOS
-# or
-.venv\Scripts\activate  # On Windows
+uv run pre-commit install
 ```
 
-## Using pip
-
-If you prefer using pip:
-
-```bash
-# Clone the repository
-git clone https://github.com/vincentgregoire/pytaq.git
-cd pytaq
-
-# Create a virtual environment
-python -m venv .venv
-source .venv/bin/activate  # On Unix/macOS
-
-# Install the package in editable mode
-pip install -e .
-```
-
-## Development Installation
-
-For development work, install the development dependencies:
-
-```bash
-# With uv
-uv sync --group dev
-
-# With pip
-pip install -e ".[dev]"
-```
-
-This includes:
-
-- `pytest` and `pytest-cov` for testing
-- `ruff` for linting and formatting
-- `jupyter` for interactive analysis
-- `mkdocs` and `mkdocs-material` for documentation
-
-## Backend Support
-
-PyTAQ uses Ibis for data manipulation. Install additional backends as needed:
-
-### DuckDB (Default)
-
-DuckDB support is included by default:
-
-```bash
-# Already included in base installation
-```
-
-### PostgreSQL
-
-For PostgreSQL support:
-
-```bash
-uv add ibis-framework[postgres]
-# or with pip
-pip install ibis-framework[postgres]
-```
-
-### Polars
-
-For in-memory processing with Polars:
-
-```bash
-uv add ibis-framework[polars]
-# or with pip
-pip install ibis-framework[polars]
-```
-
-## Verify Installation
-
-Test your installation:
-
-```python
-import pytaq
-import ibis
-
-# Create a DuckDB connection
-con = ibis.connect("duckdb://:memory:")
-
-# Verify imports work
-from pytaq.cleaning import clean_quote_table
-from pytaq.metrics import compute_effective_spreads
-
-print("PyTAQ installed successfully!")
-```
-
-## Next Steps
-
-- Follow the [Quick Start](quickstart.md) guide to process your first TAQ dataset
-- Learn about [Configuration](configuration.md) options
-- Explore the [User Guide](../user-guide/extraction.md) for detailed workflows
+`uv sync` installs every backend plus the development tools. See [Development setup](../contributing/development.md).

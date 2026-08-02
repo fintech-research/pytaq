@@ -53,7 +53,7 @@ def connect(**kwargs) -> "DuckDBBackend":
     """Open an in-memory DuckDB backend for reading local TAQ files.
 
     Args:
-        **kwargs: Passed through to ``ibis.duckdb.connect``.
+        **kwargs (Any): Passed through to ``ibis.duckdb.connect``.
 
     Returns:
         DuckDBBackend: Backend to pass to the ``get_*`` functions.

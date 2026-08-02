@@ -1,71 +1,49 @@
-# PyTAQ Documentation
+# PyTAQ
 
-Welcome to the PyTAQ documentation! PyTAQ is a Python module for processing NYSE TAQ (Trade and Quote) data using the Ibis framework for cross-platform data manipulation.
+Process NYSE TAQ trade and quote data with [Ibis](https://ibis-project.org/).
 
-## Overview
+PyTAQ implements the standard cleaning and liquidity-metric pipeline for TAQ data, following [Holden and Jacobsen (2014)](https://doi.org/10.1111/jofi.12127). Because it is written against Ibis rather than a single engine, the same code runs on the WRDS postgres server and on local copies of the data.
 
-PyTAQ provides a comprehensive toolkit for:
+## Three ways to use it
 
-- **Extracting** TAQ data from various sources (PostgreSQL, DuckDB, CSV files)
-- **Cleaning** and standardizing trade and quote data
-- **Computing** financial metrics such as spreads, liquidity measures, and trade classifications
-- **Cross-platform processing** using Ibis for compatibility with multiple database backends
+| | What it is | Install |
+|---|---|---|
+| On the WRDS cloud | Run on WRDS's own machines, against their postgres server | `pytaq[postgres]` |
+| Local, remote data | Run on your laptop, query the WRDS postgres server | `pytaq[postgres]` |
+| Local, local data | Run on your laptop, against local TAQ files | `pytaq[duckdb]` |
 
-## Key Features
+Only the first step differs. Cleaning and metrics are identical in all three.
 
-- ✨ **Ibis-based**: Leverages Ibis for portable, database-agnostic data operations
-- 🧹 **Data Cleaning**: Built-in filters for withdrawn quotes, locked/crossed markets, and abnormal spreads
-- 📊 **Rich Metrics**: Compute effective spreads, realized spreads, price impact, and more
-- 🏷️ **Trade Classification**: Multiple algorithms including Lee-Ready, EMO, CLNV, and BJZ
-- 🧪 **Well-Tested**: 75%+ code coverage with comprehensive test suite
-- 🚀 **Performance**: Optimized for large-scale TAQ data processing
-
-## Quick Example
+## A short example
 
 ```python
-import ibis
-from pytaq.cleaning import clean_quote_table, clean_trades
-from pytaq.metrics import compute_effective_spreads
+import datetime
 
-# Connect to your data source
-con = ibis.connect("duckdb://taq.db")
+from pytaq import clean_trades, local
 
-# Load and clean quotes
-quotes = con.table("quotes")
-clean_quotes = clean_quote_table(quotes)
+con = local.connect()
+raw = local.get_trades(con, "data/", datetime.date(2020, 1, 2), symbols=["AAPL"])
+trades = clean_trades(raw)
 
-# Load and clean trades
-trades = con.table("trades")
-clean_trades_data = clean_trades(trades)
-
-# Compute effective spreads
-spreads = compute_effective_spreads(
-    clean_trades_data, timestamp_col="timestamp", price_col="price"
-)
-
-# Execute and get results
-results = spreads.execute()
+print(trades.execute().head())
 ```
 
-## Project Status
+## What it does
 
-PyTAQ is currently undergoing a refactoring from pandas to Ibis (branch: `ibis`) to improve:
+**Cleaning.** Merges the separate date and time columns into a timestamp, merges the root and suffix into a symbol, and applies the Holden and Jacobsen filters: quote conditions, cancelled quotes, crossed markets, withdrawn quotes, abnormal spreads, NBBO eligibility.
 
-- Cross-platform compatibility
-- Performance with large datasets
-- Integration with modern data warehouses
+**NBBO construction.** Builds the official complete NBBO from the NBBO and quote files, or reads WRDS's own version.
 
-## Getting Started
+**Metrics.** Quoted and effective spreads, realized spreads and price impacts, time-weighted and dollar-weighted averages, lock and cross indicators.
 
-Ready to dive in? Check out the [Installation Guide](getting-started/installation.md) to get started, or jump right into the [Quick Start](getting-started/quickstart.md) tutorial.
+**Trade signing.** Lee-Ready, EMO and CLNV, plus BJZ for identifying retail trades.
 
-## Support
+## Where to start
 
-- 📖 Browse the [API Reference](api/cleaning.md) for detailed function documentation
-- 💡 Check the [User Guide](user-guide/extraction.md) for common workflows
-- 🐛 Report issues on [GitHub](https://github.com/vincentgregoire/pytaq/issues)
-- 🤝 See [Contributing](contributing/development.md) to help improve PyTAQ
+- [Installation](getting-started/installation.md), which extra you need
+- [Quick start](getting-started/quickstart.md), a worked example for each of the three paths
+- [API reference](api/cleaning.md)
 
-## License
+## A note on backends
 
-PyTAQ is released under the MIT License. See the [License](about/license.md) page for details.
+Use **DuckDB** for local work. Ibis 12's polars backend implements no window functions at all, and much of PyTAQ depends on them, so the `polars` extra cannot run the full pipeline.

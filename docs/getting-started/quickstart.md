@@ -1,174 +1,120 @@
-# Quick Start
+# Quick start
 
-This guide will walk you through a basic workflow for processing TAQ data with PyTAQ.
+Every workflow has the same three stages. Only the first differs between the three usage paths.
 
-## Basic Workflow
+1. **Open** the raw daily tables
+2. **Clean** them
+3. **Compute** metrics
 
-The typical PyTAQ workflow consists of three main steps:
+## Opening the data
 
-1. **Extract**: Load data from your source
-2. **Clean**: Filter and standardize the data
-3. **Compute**: Calculate metrics and statistics
+### Local TAQ files
 
-## Example: Processing Quote Data
+`pytaq.local` expects one file per date per data type, named after the WRDS table it came from, in a single directory:
 
-### Step 1: Connect to Data
-
-```python
-import ibis
-from datetime import datetime, time
-
-# Connect to your database
-con = ibis.connect("duckdb://path/to/taq.db")
-
-# Or use an in-memory database for testing
-con = ibis.connect("duckdb://:memory:")
+```text
+data/
+    ctm_20200102.parquet            trades
+    cqm_20200102.parquet            quotes
+    nbbom_20200102.parquet          NBBO
+    complete_nbbo_20200102.parquet  official complete NBBO
 ```
 
-### Step 2: Load Raw Data
+Parquet and CSV are both read; the extension decides. Column names may be upper or lower case.
 
 ```python
-# Load quotes table
-quotes = con.table("quotes")
+import datetime
 
-# Preview the data
-print(quotes.head().execute())
+from pytaq import local
+
+con = local.connect()
+date = datetime.date(2020, 1, 2)
+
+raw_trades = local.get_trades(con, "data/", date, symbols=["AAPL"])
+raw_nbbo = local.get_official_complete_nbbo(con, "data/", date, symbols=["AAPL"])
 ```
 
-### Step 3: Clean the Data
+### The WRDS postgres server
+
+Identical from here on; only the opening differs. This works both on the WRDS cloud and from your own machine.
 
 ```python
-from pytaq.cleaning import clean_quote_table
+import datetime
 
-# Clean quotes with default filters
-clean_quotes = clean_quote_table(
-    quotes,
-    keep_qu_cond=["A", "B", "H", "O", "R", "W"],  # Valid quote conditions
-    filter_cancelled=True,  # Remove cancelled quotes
-    filter_crossed=True,  # Remove crossed markets
-    max_spread=5.0,  # Remove quotes with spread > $5
-    nbbo_only=True,  # Keep only NBBO quotes
+from pytaq import wrds
+
+con = wrds.connect(username="your_username", password="your_password")
+date = datetime.date(2020, 1, 2)
+
+raw_trades = wrds.get_table(
+    con,
+    symbols=["AAPL"],
+    table_name=pytaq.get_trades_table_name(date),
+    database="taqmsec",
 )
-
-# Execute and view results
-result = clean_quotes.execute()
-print(f"Original rows: {quotes.count().execute()}")
-print(f"After cleaning: {result.shape[0]}")
 ```
 
-### Step 4: Compute Metrics
+Keep credentials out of your code. A `.env` file read with `python-dotenv` works well:
 
 ```python
+import os
+
+from dotenv import load_dotenv
+
+load_dotenv()
+con = wrds.connect(os.environ["WRDS_USERNAME"], os.environ["WRDS_PASSWORD"])
+```
+
+## Cleaning
+
+```python
+from pytaq import clean_official_complete_nbbo, clean_trades
+
+trades = clean_trades(raw_trades)
+nbbo = clean_official_complete_nbbo(raw_nbbo)
+```
+
+`clean_trades` merges date and time into `timestamp`, merges the symbol root and suffix into `symbol`, drops corrected trades and non-positive prices, restricts to trading hours, and adds `dollar` volume.
+
+Every filter can be turned off. The defaults come from Holden and Jacobsen; see [Configuration](configuration.md).
+
+```python
+import datetime
+
+trades = clean_trades(
+    raw_trades,
+    exclude_corrections=False,
+    start_time=datetime.time(9, 45),
+    end_time=datetime.time(15, 45),
+)
+```
+
+## Matching trades to quotes
+
+Each trade is matched to the most recent quote for the same symbol at or before its timestamp. A trade that precedes any quote keeps null quote columns rather than being dropped.
+
+```python
+from pytaq import merge_trades_official_nbbo
+
+matched = merge_trades_official_nbbo(trades, nbbo)
+```
+
+## Computing metrics
+
+```python
+from pytaq import sign_trades
 from pytaq.metrics import compute_effective_spreads
 
-# Compute effective spreads
-spreads = compute_effective_spreads(
-    clean_quotes,
-    timestamp_col="timestamp",
-    price_col="price",
-    best_ask_col="best_ask",
-    best_bid_col="best_bid",
-    filter_locks_crosses=True,
-)
+signed = sign_trades(matched)
+spreads = compute_effective_spreads(signed)
 
-# View results
-results = spreads.execute()
-print(results[["symbol", "eff_spread_dollar", "eff_spread_percent"]].head())
+result = spreads.execute()
 ```
 
-## Example: Trade Classification
+Nothing above touches the data. Ibis builds an expression and the engine runs it when you call `.execute()`, so filters and column selections are pushed down rather than materialised one stage at a time.
 
-PyTAQ supports multiple trade classification algorithms:
+## Next
 
-```python
-from pytaq.metrics import sign_bjz, sign_lr, sign_emo, sign_clnv
-
-# Load your trades
-trades = con.table("trades")
-
-# BJZ retail classification (for off-exchange trades)
-trades = trades.mutate(bjz_sign=sign_bjz(trades.price, trades.ex))
-
-# Lee-Ready classification
-trades = trades.mutate(
-    midpoint=(trades.best_bid + trades.best_ask) / 2,
-    lock_cross=(trades.best_ask <= trades.best_bid),
-)
-
-trades = trades.mutate(
-    lr_sign=sign_lr(
-        trades.price, trades.midpoint, trades.tick_direction, trades.lock_cross
-    )
-)
-
-# Execute and view
-results = trades.execute()
-print(results[["symbol", "price", "bjz_sign", "lr_sign"]].head())
-```
-
-## Example: Computing Realized Spreads
-
-```python
-from pytaq.metrics import dollar_realized_spread, percent_realized_spread
-
-# Assuming you have trades with next midpoint
-trades = trades.mutate(
-    rs_dollar=dollar_realized_spread(
-        trades.trade_sign, trades.price, trades.midpoint_next
-    ),
-    rs_percent=percent_realized_spread(
-        trades.trade_sign, trades.price, trades.midpoint_next
-    ),
-)
-
-results = trades.execute()
-print(results[["symbol", "price", "rs_dollar", "rs_percent"]].head())
-```
-
-## Working with Time Filters
-
-```python
-from datetime import time
-from pytaq.extract.common import filter_by_time
-
-# Filter to regular trading hours (9:30 AM - 4:00 PM)
-filtered = filter_by_time(quotes, start_time=time(9, 30, 0), end_time=time(16, 0, 0))
-
-results = filtered.execute()
-```
-
-## Merging Symbol Information
-
-```python
-from pytaq.extract.common import merge_symbol
-
-# Merge symbol root and suffix
-quotes = merge_symbol(quotes)
-
-# Now you have a 'symbol' column (e.g., "BRK A")
-print(quotes.select("symbol").head().execute())
-```
-
-## Tips for Large Datasets
-
-1. **Use lazy evaluation**: Ibis expressions are lazy - they don't execute until you call `.execute()`
-2. **Filter early**: Apply filters before expensive operations
-3. **Use appropriate backends**: DuckDB for local files, PostgreSQL for database storage
-4. **Batch processing**: Process data in chunks by date or symbol
-
-```python
-# Good: Filter first, then compute
-filtered = quotes.filter(quotes.symbol == "AAPL")
-result = clean_quote_table(filtered).execute()
-
-# Less efficient: Compute on everything, then filter
-result = clean_quote_table(quotes).execute()
-result = result[result["symbol"] == "AAPL"]
-```
-
-## Next Steps
-
-- Explore the [User Guide](../user-guide/extraction.md) for detailed workflows
-- Check the [API Reference](../api/cleaning.md) for complete function documentation
-- Learn about [Data Cleaning](../user-guide/cleaning.md) options
-- See [Computing Metrics](../user-guide/metrics.md) for all available calculations
+- [Configuration](configuration.md), the Holden and Jacobsen defaults and how to override them
+- [Cleaning](../user-guide/cleaning.md)
+- [Metrics](../user-guide/metrics.md)
