@@ -1,6 +1,8 @@
 # Testing Guidelines
 
-PyTAQ maintains a comprehensive test suite to ensure code quality and reliability. Currently at **75% code coverage** with **79 passing tests**.
+Tests live next to the code they cover, as `test_*.py` inside each subpackage.
+
+Coverage is reported over the source only; test files are excluded, since counting them inflates the figure considerably.
 
 ## Running Tests
 
@@ -8,29 +10,29 @@ PyTAQ maintains a comprehensive test suite to ensure code quality and reliabilit
 
 ```bash
 # Run all tests
-pytest
+uv run pytest
 
 # Run with verbose output
-pytest -v
+uv run pytest -v
 
 # Run specific test file
-pytest pytaq/metrics/test_signs.py
+uv run pytest pytaq/metrics/test_signs.py
 
 # Run specific test
-pytest pytaq/metrics/test_signs.py::test_sign_bjz_nasdaq_buy
+uv run pytest pytaq/metrics/test_signs.py::test_sign_bjz_nasdaq_buy
 ```
 
 ### Coverage Reports
 
 ```bash
 # Run with coverage
-pytest --cov=pytaq
+uv run pytest --cov=pytaq
 
 # With detailed missing lines report
-pytest --cov=pytaq --cov-report=term-missing
+uv run pytest --cov=pytaq --cov-report=term-missing
 
 # Generate HTML coverage report
-pytest --cov=pytaq --cov-report=html
+uv run pytest --cov=pytaq --cov-report=html
 
 # Open HTML report
 open htmlcov/index.html
@@ -40,16 +42,16 @@ open htmlcov/index.html
 
 ```bash
 # Run tests matching a pattern
-pytest -k "bjz"
+uv run pytest -k "bjz"
 
 # Skip slow tests
-pytest -m "not slow"
+uv run pytest -m "not slow"
 
 # Stop on first failure
-pytest -x
+uv run pytest -x
 
 # Show local variables on failure
-pytest -l
+uv run pytest -l
 ```
 
 ## Writing Tests
@@ -121,18 +123,23 @@ data = pd.DataFrame(
 2. **Convert date integers** to date objects:
 
 ```python
+import datetime
+
 # Don't use integers
-"DATE": [20230115]  # ❌
+bad = {"DATE": [20230115]}
 
 # Use datetime.date
-"DATE": [datetime.date(2023, 1, 15)]  # ✓
+good = {"DATE": [datetime.date(2023, 1, 15)]}
 ```
 
 3. **Use explicit dtype for nullable strings**:
 
 ```python
-# For columns that can be None
-"sym_suffix": pd.Series([None, None], dtype="string")
+import pandas as pd
+
+# Give nullable columns an explicit dtype, so an all-null column does not
+# arrive as an untyped null column.
+data = {"sym_suffix": pd.Series([None, None], dtype="string")}
 ```
 
 ### Testing Ibis Expressions

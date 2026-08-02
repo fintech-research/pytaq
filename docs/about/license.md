@@ -55,7 +55,7 @@ If you use PyTAQ in academic research, please cite it as:
   author = {Grégoire, Vincent},
   title = {PyTAQ: Python Module for Processing NYSE TAQ Data},
   year = {2024},
-  url = {https://github.com/vincentgregoire/pytaq}
+  url = {https://github.com/fintech-research/pytaq}
 }
 ```
 

@@ -1,8 +1,8 @@
 site_name: PyTAQ Documentation
 site_description: Python module for processing NYSE TAQ (Trade and Quote) data using Ibis
 site_author: Vincent Grégoire
-repo_url: https://github.com/vincentgregoire/pytaq
-repo_name: vincentgregoire/pytaq
+repo_url: https://github.com/fintech-research/pytaq
+repo_name: fintech-research/pytaq
 
 theme:
   name: material
@@ -74,11 +74,11 @@ nav:
       - Quick Start: getting-started/quickstart.md
       - Configuration: getting-started/configuration.md
   - User Guide:
-      - Data Extraction: user-guide/extraction.md
       - Data Cleaning: user-guide/cleaning.md
       - Computing Metrics: user-guide/metrics.md
       - Working with NBBO: user-guide/nbbo.md
   - API Reference:
+      - Data Sources: api/data-sources.md
       - Cleaning Module: api/cleaning.md
       - Metrics Module: api/metrics.md
       - Utils Module: api/utils.md
@@ -93,4 +93,4 @@ nav:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/vincentgregoire/pytaq
+      link: https://github.com/fintech-research/pytaq
