@@ -40,14 +40,19 @@ def compute_averages(
             col_name = f"{col}{suffix}"
 
             if weight_col is None:
-                # Simple average
+                # Simple average, which already ignores nulls.
                 aggregations[col_name] = table[col].mean()
             else:
-                # Weighted average
-                # For weighted average, we need to handle nulls carefully
-                # This is a simplified approach - in practice you might need more sophisticated null handling
-                weighted_sum = (table[col] * table[weight_col]).sum()
-                weight_sum = table[weight_col].sum()
+                # Weighted average. Both sums must run over the same rows: the
+                # numerator drops rows where the measure is null, so summing
+                # the full weight column in the denominator biases the result
+                # toward zero in proportion to the weight carried by the
+                # missing observations. On three observations with the middle
+                # one missing and holding 98% of the weight, that turned a
+                # correct 1.5 into 0.03.
+                observed = table[col].notnull() & table[weight_col].notnull()
+                weighted_sum = (table[col] * table[weight_col]).sum(where=observed)
+                weight_sum = table[weight_col].sum(where=observed)
                 aggregations[col_name] = weighted_sum / weight_sum
 
     return grouped.agg(**aggregations)

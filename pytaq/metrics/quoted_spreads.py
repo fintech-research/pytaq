@@ -93,11 +93,15 @@ def compute_weighted_averages(
     aggregations = {}
 
     for measure in measures:
-        # Weighted average: sum(measure * weight) / sum(weight)
-        weighted_sum = (table[measure] * table[inforce_col]).sum()
-        weight_sum = table[inforce_col].sum()
+        # Weighted average: sum(measure * weight) / sum(weight), with both sums
+        # restricted to the rows the numerator can actually use. Summing the
+        # full weight column while the numerator skips nulls biases the result
+        # toward zero in proportion to the weight the missing rows carry.
+        observed = table[measure].notnull() & table[inforce_col].notnull()
+        weighted_sum = (table[measure] * table[inforce_col]).sum(where=observed)
+        weight_sum = table[inforce_col].sum(where=observed)
 
-        # Handle case where sum of weights is 0 or all weights are null
+        # No observed weight means there is nothing to average, not zero.
         aggregations[measure] = (weight_sum == 0).ifelse(
             ibis.null(), weighted_sum / weight_sum
         )
