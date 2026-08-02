@@ -1,14 +1,55 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "pytaq"
 version = "0.2.0"
-description = "Module to process NYSE TAQ data"
+description = "Process NYSE TAQ trade and quote data with Ibis"
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
 authors = [{ name = "Vincent Grégoire", email = "vincent.gregoire@hec.ca" }]
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
+keywords = [
+    "taq",
+    "nyse",
+    "market-microstructure",
+    "finance",
+    "ibis",
+    "wrds",
+    "trades",
+    "quotes",
+    "nbbo",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Financial and Insurance Industry",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business :: Financial :: Investment",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Typing :: Typed",
+]
 dependencies = [
     "ibis-framework>=9.5.0",
     "ibis-framework[duckdb,polars,postgres]>=9.5.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/fintech-research/pytaq"
+Repository = "https://github.com/fintech-research/pytaq"
+Documentation = "https://github.com/fintech-research/pytaq"
+Issues = "https://github.com/fintech-research/pytaq/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["pytaq"]
+
+[tool.hatch.build.targets.sdist]
+include = ["pytaq", "README.md", "LICENSE", "pyproject.toml"]
 
 
 [tool.uv.pip]
