@@ -5,6 +5,11 @@ trade sign classification (Lee-Ready, EMO, CLNV, and BJZ for retail trades).
 """
 
 from .averages import compute_averages, compute_averages_ave_sw_dw
+from .conventions import (
+    DEFAULT_PERCENT_METHOD,
+    PERCENT_METHODS,
+    PercentMethod,
+)
 from .effective_spreads import compute_effective_spreads
 from .locks_crosses import (
     crossed_rows,
@@ -41,7 +46,10 @@ from .timestamps import filter_timestamp
 
 __all__ = [
     "BASE_SIGNS",
+    "DEFAULT_PERCENT_METHOD",
+    "PERCENT_METHODS",
     "RETAIL_SIGNS",
+    "PercentMethod",
     "compute_averages",
     "compute_averages_ave_sw_dw",
     "compute_effective_spreads",

@@ -45,18 +45,18 @@ These filters set the offending side to null rather than dropping the row, which
 
 ## Liquidity measures
 
-Dollar measures agree throughout. Percent measures do not: H&J divide the dollar measure by the midpoint, PyTAQ takes a log difference.
+Dollar measures agree throughout. Percent measures follow H&J by default, dividing the dollar measure by the reference midpoint. The log-difference form remains available through `percent_method="log"` on each function; the two agree to first order and diverge as spreads widen.
 
 | Measure | Holden and Jacobsen | PyTAQ | Status |
 |---|---|---|---|
 | Dollar quoted spread | `ask - bid` | same | matches |
-| Percent quoted spread | `(ask - bid) / midpoint` | `log(ask) - log(bid)` | differs, #39 |
+| Percent quoted spread | `(ask - bid) / midpoint` | same by default | matches, `percent_method` |
 | Dollar effective spread | `2·abs(P - M)` | same | matches |
-| Percent effective spread | `2·abs(P - M) / M` | `2·abs(log P - log M)` | differs, #39 |
+| Percent effective spread | `2·abs(P - M) / M` | same by default | matches, `percent_method` |
 | Dollar realized spread | `2·D·(P - M₅)` | same | matches |
-| Percent realized spread | `2·D·(P - M₅) / M₅` | `2·D·(log P - log M₅)` | differs, #39 |
+| Percent realized spread | `2·D·(P - M₅) / M₅` | same by default | matches, `percent_method` |
 | Dollar price impact | `ES$ - RS$` | `2·D·(M₅ - M)` | matches, algebraically identical |
-| Percent price impact | `(ES$ - RS$) / M₅` | `2·D·(log M₅ - log M)` | differs, #39 |
+| Percent price impact | `(ES$ - RS$) / M₅` | same by default | matches, `percent_method` |
 | Realized spread horizon | 5 minutes | `delay` parameter, default 5 minutes | matches |
 | Denominator for RS and PI | the **future** midpoint `M₅` | `M₅` in the dollar form | matches |
 

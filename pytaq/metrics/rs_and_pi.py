@@ -3,6 +3,11 @@ from datetime import timedelta
 from typing import TYPE_CHECKING
 
 from ..utils.float_approx import correct_float_approx
+from .conventions import (
+    DEFAULT_PERCENT_METHOD,
+    PercentMethod,
+    check_percent_method,
+)
 from .locks_crosses import filter_locks_crosses
 from .signs import BASE_SIGNS, RETAIL_SIGNS
 
@@ -33,6 +38,7 @@ def percent_realized_spread(
     sign: "Column",
     price: "Column",
     midpoint_next: "Column",
+    percent_method: PercentMethod = DEFAULT_PERCENT_METHOD,
 ) -> "Column":
     """Compute percent realized spread.
 
@@ -44,7 +50,13 @@ def percent_realized_spread(
     Returns:
         Column: Percent realized spread
     """
-    s = sign * (price.log() - midpoint_next.log()) * 2
+    check_percent_method(percent_method)
+    if percent_method == "ratio":
+        # Holden and Jacobsen divide the dollar measure by the *future*
+        # midpoint, the same one the realized spread is measured against.
+        s = sign * (price - midpoint_next) * 2 / midpoint_next
+    else:
+        s = sign * (price.log() - midpoint_next.log()) * 2
     return correct_float_approx(s, price, midpoint_next)
 
 
@@ -71,6 +83,7 @@ def percent_price_impact(
     sign: "Column",
     midpoint: "Column",
     midpoint_next: "Column",
+    percent_method: PercentMethod = DEFAULT_PERCENT_METHOD,
 ) -> "Column":
     """Compute percent price impact.
 
@@ -82,7 +95,13 @@ def percent_price_impact(
     Returns:
         Column: Percent price impact
     """
-    s = sign * (midpoint_next.log() - midpoint.log()) * 2
+    check_percent_method(percent_method)
+    if percent_method == "ratio":
+        # Equivalent to (dollar effective spread - dollar realized spread)
+        # over the future midpoint, which is how H&J write it.
+        s = sign * (midpoint_next - midpoint) * 2 / midpoint_next
+    else:
+        s = sign * (midpoint_next.log() - midpoint.log()) * 2
     return correct_float_approx(s, midpoint, midpoint_next)
 
 
@@ -98,6 +117,7 @@ def rs_and_pi(
     percent_realized_spread_prefix: str = "PercentRealizedSpread_",
     dollar_price_impact_prefix: str = "DollarPriceImpact_",
     percent_price_impact_prefix: str = "PercentPriceImpact_",
+    percent_method: PercentMethod = DEFAULT_PERCENT_METHOD,
 ) -> "Table":
     """Compute realized spreads and price impacts.
 
@@ -137,6 +157,7 @@ def rs_and_pi(
                     sign=sign,
                     price=price,
                     midpoint_next=midpoint_next,
+                    percent_method=percent_method,
                 ),
                 f"{dollar_price_impact_prefix}{sign_col_suffix}{suffix}": dollar_price_impact(
                     sign=sign,
@@ -147,6 +168,7 @@ def rs_and_pi(
                     sign=sign,
                     midpoint=midpoint,
                     midpoint_next=midpoint_next,
+                    percent_method=percent_method,
                 ),
             }
         )
@@ -214,6 +236,7 @@ def compute_rs_and_pi(
     delay: timedelta = timedelta(minutes=5),
     suffix: str = "5min",
     track_retail: bool = False,
+    percent_method: PercentMethod = DEFAULT_PERCENT_METHOD,
 ) -> "Table":
     """Compute realized spreads and price impacts.
 
@@ -239,4 +262,6 @@ def compute_rs_and_pi(
 
     signs = BASE_SIGNS + RETAIL_SIGNS if track_retail else BASE_SIGNS
 
-    return rs_and_pi(filtered_table, signs=signs, suffix=suffix)
+    return rs_and_pi(
+        filtered_table, signs=signs, suffix=suffix, percent_method=percent_method
+    )

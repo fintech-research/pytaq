@@ -51,20 +51,28 @@ def test_percent_realized_spread_basic(con):
     )
     table = con.create_table("test", data)
 
-    result = table.mutate(
-        rs_percent=percent_realized_spread(table.sign, table.price, table.midpoint_next)
-    ).execute()
-
-    # RS% = sign * (log(price) - log(midpoint_next)) * 2
     import math
 
-    # First: 1 * (log(101) - log(100)) * 2
-    expected1 = (math.log(101.0) - math.log(100.0)) * 2
-    assert abs(result["rs_percent"].iloc[0] - expected1) < 1e-6
+    # Default is the Holden and Jacobsen ratio: the dollar measure over the
+    # future midpoint, sign * (price - midpoint_next) * 2 / midpoint_next.
+    ratio = table.mutate(
+        rs_percent=percent_realized_spread(table.sign, table.price, table.midpoint_next)
+    ).execute()
+    assert ratio["rs_percent"].iloc[0] == pytest.approx((101.0 - 100.0) * 2 / 100.0)
+    assert ratio["rs_percent"].iloc[1] == pytest.approx(-(99.0 - 100.0) * 2 / 100.0)
 
-    # Second: -1 * (log(99) - log(100)) * 2 = -1 * (-0.01005...) * 2
-    expected2 = -(math.log(99.0) - math.log(100.0)) * 2
-    assert abs(result["rs_percent"].iloc[1] - expected2) < 1e-6
+    # The log convention remains available.
+    log = table.mutate(
+        rs_percent=percent_realized_spread(
+            table.sign, table.price, table.midpoint_next, percent_method="log"
+        )
+    ).execute()
+    assert log["rs_percent"].iloc[0] == pytest.approx(
+        (math.log(101.0) - math.log(100.0)) * 2
+    )
+    assert log["rs_percent"].iloc[1] == pytest.approx(
+        -(math.log(99.0) - math.log(100.0)) * 2
+    )
 
 
 def test_dollar_price_impact_basic(con):
@@ -102,20 +110,26 @@ def test_percent_price_impact_basic(con):
     )
     table = con.create_table("test", data)
 
-    result = table.mutate(
-        pi_percent=percent_price_impact(table.sign, table.midpoint, table.midpoint_next)
-    ).execute()
-
-    # PI% = sign * (log(midpoint_next) - log(midpoint)) * 2
     import math
 
-    # First: 1 * (log(101) - log(100)) * 2
-    expected1 = (math.log(101.0) - math.log(100.0)) * 2
-    assert abs(result["pi_percent"].iloc[0] - expected1) < 1e-6
+    # Default is the H&J ratio, divided by the future midpoint.
+    ratio = table.mutate(
+        pi_percent=percent_price_impact(table.sign, table.midpoint, table.midpoint_next)
+    ).execute()
+    assert ratio["pi_percent"].iloc[0] == pytest.approx((101.0 - 100.0) * 2 / 101.0)
+    assert ratio["pi_percent"].iloc[1] == pytest.approx(-(99.0 - 100.0) * 2 / 99.0)
 
-    # Second: -1 * (log(99) - log(100)) * 2
-    expected2 = -(math.log(99.0) - math.log(100.0)) * 2
-    assert abs(result["pi_percent"].iloc[1] - expected2) < 1e-6
+    log = table.mutate(
+        pi_percent=percent_price_impact(
+            table.sign, table.midpoint, table.midpoint_next, percent_method="log"
+        )
+    ).execute()
+    assert log["pi_percent"].iloc[0] == pytest.approx(
+        (math.log(101.0) - math.log(100.0)) * 2
+    )
+    assert log["pi_percent"].iloc[1] == pytest.approx(
+        -(math.log(99.0) - math.log(100.0)) * 2
+    )
 
 
 def test_realized_spread_zero_sign(con):
