@@ -105,14 +105,12 @@ unsupported-operator = "ignore"
 # pre-commit hook fails on every commit until they land. Delete each block as
 # its issue closes.
 
-# #7: ibis.window(partition_by=) should be group_by=. unresolved-attribute also
-# covers the `.total_seconds().abs()` call at quoted_spreads.py:54, in the same
-# broken function.
+# #8: the tick-test forward fill calls .max() on an expression that is not an
+# aggregate, as part of a construct that also nests window functions.
 [[tool.ty.overrides]]
-include = ["pytaq/metrics/signs.py", "pytaq/metrics/quoted_spreads.py"]
+include = ["pytaq/metrics/signs.py"]
 
 [tool.ty.overrides.rules]
-unknown-argument = "ignore"
 unresolved-attribute = "ignore"
 
 # #9: asof_join is called with by= and suffixes=, which do not exist, and
