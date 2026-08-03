@@ -94,4 +94,4 @@ PyTAQ is an independent open-source project, not affiliated with, endorsed by, o
 
 ## License
 
-BSD 3-Clause. See [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).
