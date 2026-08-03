@@ -50,16 +50,16 @@ def test_compute_averages_ave_sw_dw():
     assert result_df["symbol"].iloc[1] == "B"
 
     # Check averages (with some tolerance for floating point)
-    assert abs(result_df["price_Ave"].iloc[0] - expected_price_ave[0]) < 0.01
-    assert abs(result_df["price_Ave"].iloc[1] - expected_price_ave[1]) < 0.01
+    assert abs(result_df["price_average"].iloc[0] - expected_price_ave[0]) < 0.01
+    assert abs(result_df["price_average"].iloc[1] - expected_price_ave[1]) < 0.01
 
     # Check dollar-weighted averages
-    assert abs(result_df["price_DW"].iloc[0] - expected_price_dw[0]) < 0.01
-    assert abs(result_df["price_DW"].iloc[1] - expected_price_dw[1]) < 0.01
+    assert abs(result_df["price_dollar_weighted"].iloc[0] - expected_price_dw[0]) < 0.01
+    assert abs(result_df["price_dollar_weighted"].iloc[1] - expected_price_dw[1]) < 0.01
 
     # Check share-weighted averages
-    assert abs(result_df["price_SW"].iloc[0] - expected_price_sw[0]) < 0.01
-    assert abs(result_df["price_SW"].iloc[1] - expected_price_sw[1]) < 0.01
+    assert abs(result_df["price_share_weighted"].iloc[0] - expected_price_sw[0]) < 0.01
+    assert abs(result_df["price_share_weighted"].iloc[1] - expected_price_sw[1]) < 0.01
 
 
 def test_weighted_average_ignores_the_weight_of_missing_observations(con):
@@ -81,11 +81,11 @@ def test_weighted_average_ignores_the_weight_of_missing_observations(con):
     table = con.create_table("weighted_nulls", data)
 
     result = compute_averages(
-        table, cols=["spread"], group="symbol", weights=[("size", "_SW")]
+        table, cols=["spread"], group="symbol", weights=[("size", "_share_weighted")]
     ).execute()
 
     # (1.0*10 + 2.0*10) / (10 + 10)
-    assert result["spread_SW"].iloc[0] == pytest.approx(1.5)
+    assert result["spread_share_weighted"].iloc[0] == pytest.approx(1.5)
 
 
 def test_weighted_average_unchanged_without_nulls(con):
@@ -100,10 +100,10 @@ def test_weighted_average_unchanged_without_nulls(con):
     table = con.create_table("weighted_complete", data)
 
     result = compute_averages(
-        table, cols=["spread"], group="symbol", weights=[("size", "_SW")]
+        table, cols=["spread"], group="symbol", weights=[("size", "_share_weighted")]
     ).execute()
 
-    assert result["spread_SW"].iloc[0] == pytest.approx(
+    assert result["spread_share_weighted"].iloc[0] == pytest.approx(
         (1 * 10 + 3 * 80 + 2 * 10) / 100
     )
 
@@ -120,10 +120,10 @@ def test_weighted_average_of_an_entirely_missing_measure_is_null(con):
     table = con.create_table("weighted_all_null", data)
 
     result = compute_averages(
-        table, cols=["spread"], group="symbol", weights=[("size", "_SW")]
+        table, cols=["spread"], group="symbol", weights=[("size", "_share_weighted")]
     ).execute()
 
-    assert pd.isna(result["spread_SW"].iloc[0])
+    assert pd.isna(result["spread_share_weighted"].iloc[0])
 
 
 def test_a_null_weight_excludes_its_observation(con):
@@ -138,8 +138,8 @@ def test_a_null_weight_excludes_its_observation(con):
     table = con.create_table("weighted_null_weight", data)
 
     result = compute_averages(
-        table, cols=["spread"], group="symbol", weights=[("size", "_SW")]
+        table, cols=["spread"], group="symbol", weights=[("size", "_share_weighted")]
     ).execute()
 
     # The 99.0 observation has no weight, so it is excluded entirely.
-    assert result["spread_SW"].iloc[0] == pytest.approx(1.5)
+    assert result["spread_share_weighted"].iloc[0] == pytest.approx(1.5)

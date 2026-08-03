@@ -26,13 +26,13 @@ def test_compute_effective_spreads_basic(con):
     result = compute_effective_spreads(table).execute()
 
     # Check that spread columns were added
-    assert "DollarEffectiveSpread" in result.columns
-    assert "PercentEffectiveSpread" in result.columns
+    assert "effective_spread_dollar" in result.columns
+    assert "effective_spread_percent" in result.columns
 
     # Dollar effective spread = 2 * |price - midpoint|
-    assert abs(result["DollarEffectiveSpread"].iloc[0] - 1.0) < 0.01
-    assert abs(result["DollarEffectiveSpread"].iloc[1] - 1.0) < 0.01
-    assert abs(result["DollarEffectiveSpread"].iloc[2] - 1.0) < 0.01
+    assert abs(result["effective_spread_dollar"].iloc[0] - 1.0) < 0.01
+    assert abs(result["effective_spread_dollar"].iloc[1] - 1.0) < 0.01
+    assert abs(result["effective_spread_dollar"].iloc[2] - 1.0) < 0.01
 
 
 def test_compute_effective_spreads_filters_locks(con):
@@ -105,9 +105,9 @@ def test_compute_effective_spreads_dollar_calculation(con):
     result = compute_effective_spreads(table).execute()
 
     # Dollar spread = 2 * |price - midpoint|
-    assert abs(result["DollarEffectiveSpread"].iloc[0] - 2.0) < 0.01  # 2*|100-99|
-    assert abs(result["DollarEffectiveSpread"].iloc[1] - 10.0) < 0.01  # 2*|105-100|
-    assert abs(result["DollarEffectiveSpread"].iloc[2] - 4.0) < 0.01  # 2*|98-100|
+    assert abs(result["effective_spread_dollar"].iloc[0] - 2.0) < 0.01  # 2*|100-99|
+    assert abs(result["effective_spread_dollar"].iloc[1] - 10.0) < 0.01  # 2*|105-100|
+    assert abs(result["effective_spread_dollar"].iloc[2] - 4.0) < 0.01  # 2*|98-100|
 
 
 def test_compute_effective_spreads_percent_calculation(con):
@@ -128,8 +128,8 @@ def test_compute_effective_spreads_percent_calculation(con):
     expected1 = 2 * abs(math.log(100.0) - math.log(99.0))
     expected2 = 2 * abs(math.log(105.0) - math.log(100.0))
 
-    assert abs(result["PercentEffectiveSpread"].iloc[0] - expected1) < 0.01
-    assert abs(result["PercentEffectiveSpread"].iloc[1] - expected2) < 0.01
+    assert abs(result["effective_spread_percent"].iloc[0] - expected1) < 0.01
+    assert abs(result["effective_spread_percent"].iloc[1] - expected2) < 0.01
 
 
 def test_compute_effective_spreads_preserves_columns(con):
@@ -179,17 +179,17 @@ def test_percent_effective_spread_defaults_to_the_hj_ratio(one_trade):
     result = compute_effective_spreads(one_trade).execute()
 
     # 2*|100.5 - 100.0| = 1.0, and 1.0 / 100.0 = 0.01
-    assert result["DollarEffectiveSpread"].iloc[0] == pytest.approx(1.0)
-    assert result["PercentEffectiveSpread"].iloc[0] == pytest.approx(0.01)
+    assert result["effective_spread_dollar"].iloc[0] == pytest.approx(1.0)
+    assert result["effective_spread_percent"].iloc[0] == pytest.approx(0.01)
 
 
 def test_percent_effective_spread_log_convention_is_available(one_trade):
     result = compute_effective_spreads(one_trade, percent_method="log").execute()
 
     expected = abs(math.log(100.5) - math.log(100.0)) * 2
-    assert result["PercentEffectiveSpread"].iloc[0] == pytest.approx(expected)
+    assert result["effective_spread_percent"].iloc[0] == pytest.approx(expected)
     # Close to the ratio form, but not equal to it.
-    assert result["PercentEffectiveSpread"].iloc[0] != pytest.approx(0.01, abs=1e-12)
+    assert result["effective_spread_percent"].iloc[0] != pytest.approx(0.01, abs=1e-12)
 
 
 def test_dollar_effective_spread_does_not_depend_on_the_convention(one_trade):
@@ -197,7 +197,8 @@ def test_dollar_effective_spread_does_not_depend_on_the_convention(one_trade):
     log = compute_effective_spreads(one_trade, percent_method="log").execute()
 
     assert (
-        ratio["DollarEffectiveSpread"].iloc[0] == log["DollarEffectiveSpread"].iloc[0]
+        ratio["effective_spread_dollar"].iloc[0]
+        == log["effective_spread_dollar"].iloc[0]
     )
 
 

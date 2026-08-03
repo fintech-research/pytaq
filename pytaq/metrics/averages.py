@@ -80,10 +80,10 @@ def compute_averages_ave_sw_dw(
 
     weights: list[tuple[str | None, str]] = []
     if simple:
-        weights.append((None, "_Ave"))
+        weights.append((None, "_average"))
     if dollar_weighted:
-        weights.append(("dollar", "_DW"))
+        weights.append(("dollar", "_dollar_weighted"))
     if share_weighted:
-        weights.append(("size", "_SW"))
+        weights.append(("size", "_share_weighted"))
 
     return compute_averages(table=table, cols=measures, group="symbol", weights=weights)

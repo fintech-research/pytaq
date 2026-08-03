@@ -57,7 +57,7 @@ if TYPE_CHECKING:
     from ibis.expr.types import Table
 
 #: Measures averaged per symbol-day from the trade side.
-TRADE_MEASURES = ("DollarEffectiveSpread", "PercentEffectiveSpread")
+TRADE_MEASURES = ("effective_spread_dollar", "effective_spread_percent")
 
 #: Measures averaged per symbol-day from the quote side, time-weighted.
 QUOTE_MEASURES = ("quoted_spread_dollar", "quoted_spread_percent")
@@ -65,8 +65,8 @@ QUOTE_MEASURES = ("quoted_spread_dollar", "quoted_spread_percent")
 #: Simple, share-weighted and dollar-weighted, as Holden and Jacobsen report.
 TRADE_WEIGHTS: tuple[tuple[str | None, str], ...] = (
     (None, ""),
-    ("size", "_SW"),
-    ("dollar", "_DW"),
+    ("size", "_share_weighted"),
+    ("dollar", "_dollar_weighted"),
 )
 
 
@@ -236,13 +236,13 @@ def _daily_aggregates(
     if realized_spreads is not None:
         signs = BASE_SIGNS + RETAIL_SIGNS if track_retail else BASE_SIGNS
         measures = [
-            f"{prefix}{sign}{horizon_suffix}"
+            f"{prefix}{sign}_{horizon_suffix}"
             for sign in signs
             for prefix in (
-                "DollarRealizedSpread_",
-                "PercentRealizedSpread_",
-                "DollarPriceImpact_",
-                "PercentPriceImpact_",
+                "realized_spread_dollar_",
+                "realized_spread_percent_",
+                "price_impact_dollar_",
+                "price_impact_percent_",
             )
         ]
         rs_side = compute_averages(
