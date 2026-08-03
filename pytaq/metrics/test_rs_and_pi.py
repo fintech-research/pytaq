@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 import ibis
 import pandas as pd
 import pytest
@@ -5,6 +7,7 @@ import pytest
 from .rs_and_pi import (
     dollar_price_impact,
     dollar_realized_spread,
+    merge_future_nbbo,
     percent_price_impact,
     percent_realized_spread,
 )
@@ -170,3 +173,61 @@ def test_price_impact_same_midpoints(con):
     # When midpoints are equal, should be corrected to null
     assert pd.isna(result["pi_dollar"].iloc[0])
     assert pd.isna(result["pi_dollar"].iloc[1])
+
+
+def test_merge_future_nbbo_applies_the_horizon_in_nanoseconds(con):
+    """The horizon is read at nanosecond precision when both sides carry the key.
+
+    `timestamp` is only microsecond-resolution, so a quote 500 nanoseconds past
+    the horizon shares a microsecond with it and is indistinguishable from a
+    quote sitting exactly on it. Matching on `timestamp` takes that quote;
+    matching on `timestamp_ns` must not.
+    """
+    base = pd.Timestamp("2020-01-02 09:30:00")
+    delay = timedelta(minutes=5)
+    horizon_ns = base.value + int(delay.total_seconds()) * 1_000_000_000
+
+    # Trades arrive already matched to the quote in force, as `compute_rs_and_pi`
+    # passes them, so the NBBO columns collide and the future ones take `_next`.
+    trades = pd.DataFrame(
+        {
+            "symbol": ["AAPL"],
+            "timestamp": [base],
+            "timestamp_ns": [base.value],
+            "price": [100.0],
+            "best_bid": [99.5],
+            "best_ask": [100.5],
+            "midpoint": [100.0],
+        }
+    )
+    # The second quote is 500 nanoseconds past the horizon, inside the same
+    # microsecond, so its `timestamp` lands exactly on the horizon.
+    quote_times = [base + timedelta(minutes=4), base + delay]
+    nbbo = pd.DataFrame(
+        {
+            "symbol": ["AAPL", "AAPL"],
+            "timestamp": quote_times,
+            "timestamp_ns": [quote_times[0].value, horizon_ns + 500],
+            "best_bid": [10.0, 20.0],
+            "best_ask": [11.0, 21.0],
+        }
+    )
+
+    result = merge_future_nbbo(
+        con.create_table("trades_ns", trades),
+        con.create_table("nbbo_ns", nbbo),
+        delay=delay,
+    ).execute()
+
+    # That quote is after the horizon, so the earlier one stands: (10 + 11) / 2.
+    assert result["midpoint_next"].iloc[0] == pytest.approx(10.5)
+
+    # Without the nanosecond key the join falls back to `timestamp`, where the
+    # same quote sits on the horizon and is taken instead: (20 + 21) / 2.
+    fallback = merge_future_nbbo(
+        con.create_table("trades_us", trades.drop(columns="timestamp_ns")),
+        con.create_table("nbbo_us", nbbo.drop(columns="timestamp_ns")),
+        delay=delay,
+    ).execute()
+
+    assert fallback["midpoint_next"].iloc[0] == pytest.approx(20.5)
