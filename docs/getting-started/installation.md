@@ -1,6 +1,6 @@
 # Installation
 
-PyTAQ requires Python 3.11 or later.
+PyTAQ requires Python 3.13 or later.
 
 ## Pick your extra
 

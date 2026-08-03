@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 import ibis
 
 if TYPE_CHECKING:
-    from ibis.expr.types import BooleanValue, Column, NumericValue
+    from ibis.expr.types import BooleanValue, Column, NumericValue, Value
 
 """
     Notes:
@@ -32,8 +32,10 @@ def float_equal(
     """
     # Implement isclose manually: |s1 - s2| <= atol
     # Handle NaN: both NaN should be considered equal
+    # ibis compares expressions against expressions; a bare float is coerced
+    # at runtime but is not what the operator is declared to accept.
     diff = (s1 - s2).abs()
-    within_tol = diff <= atol
+    within_tol = diff <= ibis.literal(atol)
 
     # Check if both are null/NaN and treat as equal
     both_null = s1.isnull() & s2.isnull()
@@ -51,7 +53,10 @@ def float_zero(s: "NumericValue", atol: float = DEFAULT_ATOL) -> "BooleanValue":
     Returns:
         BooleanValue: Boolean expression indicating approximate equality with zero
     """
-    return float_equal(s, ibis.literal(0.0), atol=atol)
+    # Equivalent to comparing against a zero literal through float_equal, but
+    # without the roundtrip: a null input yields null either way, since a null
+    # is not within tolerance of zero.
+    return s.abs() <= ibis.literal(atol)
 
 
 def correct_float_approx(
@@ -59,7 +64,7 @@ def correct_float_approx(
     s1: "NumericValue",
     s2: "NumericValue",
     atol: float = DEFAULT_ATOL,
-) -> "Column":
+) -> "Value":
     """Changes values of a column to null when the corresponding entries in the two other
     columns are numerically very close.
 
@@ -70,7 +75,7 @@ def correct_float_approx(
         atol (float, optional): Absolute tolerance for comparison. Defaults to 0.000001.
 
     Returns:
-        Column: Corrected column
+        Value: The series with approximately-equal rows set to null
     """
     equal = float_equal(s1=s1, s2=s2, atol=atol)
 

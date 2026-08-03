@@ -203,4 +203,5 @@ def test_dollar_effective_spread_does_not_depend_on_the_convention(one_trade):
 
 def test_unknown_percent_method_is_rejected(one_trade):
     with pytest.raises(ValueError, match="percent_method must be one of"):
-        compute_effective_spreads(one_trade, percent_method="geometric")
+        # Deliberately invalid: this is the test.
+        compute_effective_spreads(one_trade, percent_method="geometric")  # ty: ignore[invalid-argument-type]

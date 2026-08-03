@@ -7,7 +7,7 @@ name = "pytaq"
 version = "0.2.0"
 description = "Process NYSE TAQ trade and quote data with Ibis"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 authors = [{ name = "Vincent Grégoire", email = "vincent.gregoire@hec.ca" }]
 license = "BSD-3-Clause"
 license-files = ["LICENSE"]
@@ -28,8 +28,6 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: Office/Business :: Financial :: Investment",
     "Topic :: Scientific/Engineering :: Information Analysis",
@@ -61,6 +59,8 @@ Issues = "https://github.com/fintech-research/pytaq/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["pytaq"]
+# PEP 561 marker, so downstream type checkers use our annotations.
+artifacts = ["pytaq/py.typed"]
 
 [tool.hatch.build.targets.sdist]
 include = ["pytaq", "README.md", "LICENSE", "pyproject.toml"]
@@ -118,9 +118,6 @@ exclude = [".venv", "site", "dist"]
 # what found real bugs: it independently flagged ibis.window(partition_by=) and
 # the asof_join call filed as #7 and #9. Those stay on.
 [tool.ty.rules]
-invalid-argument-type = "ignore"
-invalid-return-type = "ignore"
-unsupported-operator = "ignore"
 
 [tool.ruff.format]
 line-ending = "lf"

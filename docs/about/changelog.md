@@ -16,6 +16,7 @@ Completion of the pandas-to-Ibis refactor and everything needed to publish.
 - `pytaq.tables`, the daily table naming shared by the postgres and local paths
 - Build backend and full package metadata. The project could not be built at all before
 - `ruff`, `ty` and `pre-commit` configuration, run locally
+- `py.typed`, so downstream type checkers actually use the annotations. The package advertised `Typing :: Typed` without shipping the marker
 - `TO_VERIFY.md` for claims that need real TAQ data to confirm
 - End-to-end tests covering a full local-files workflow, and first tests for `cleaning/nbbo.py`, `merge_trades_official_nbbo`, `sign_tick` and `sign_trades`
 
@@ -35,7 +36,7 @@ Completion of the pandas-to-Ibis refactor and everything needed to publish.
 - Ibis 9.5 to 12. Among other things this replaces `psycopg2`, which has no macOS wheels, with `psycopg` 3, so `uv sync` works on macOS
 - `sign_tick` returns a table rather than a column, because the forward fill needs a materialised intermediate. It also now exposes the tick direction as an output column
 - Documentation rewritten against the actual API. The previous version documented functions that never existed
-- `requires-python` widened to `>=3.11`
+- `requires-python` raised to `>=3.13`. Ibis 12's `pyarrow<18` constraint is gone, and targeting one modern version keeps the annotations simple
 
 ### Removed
 

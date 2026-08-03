@@ -1,7 +1,11 @@
 from collections.abc import Sequence
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 import ibis
+
+if TYPE_CHECKING:
+    from ibis.expr.types import Table
 
 from ..hj_defaults import (
     HJ_KEEP_QU_COND,
@@ -49,7 +53,7 @@ CTA_NBBO_ELIGIBLE: tuple[str, ...] = ("1", "G")
 UTP_NBBO_ELIGIBLE: tuple[str, ...] = ("4",)
 
 
-def _neutralize(t: ibis.Table, condition, sides: str = "both") -> ibis.Table:
+def _neutralize(t: "Table", condition, sides: str = "both") -> "Table":
     """Null out one or both sides of a quote where `condition` holds.
 
     Holden and Jacobsen never delete a quote row. Each of their filters sets the
@@ -76,7 +80,7 @@ def _neutralize(t: ibis.Table, condition, sides: str = "both") -> ibis.Table:
     return t.mutate(**updates)
 
 
-def neutralize_withdrawn_quotes(t: ibis.Table) -> ibis.Table:
+def neutralize_withdrawn_quotes(t: "Table") -> "Table":
     """Null out any side a venue has withdrawn.
 
     A side is withdrawn when its price or its size is missing or non-positive.
@@ -85,10 +89,10 @@ def neutralize_withdrawn_quotes(t: ibis.Table) -> ibis.Table:
     Quote Filter 3 requires this.
 
     Args:
-        t (ibis.Table): Quotes table
+        t ("Table"): Quotes table
 
     Returns:
-        ibis.Table: Quotes table with withdrawn sides nulled
+        "Table": Quotes table with withdrawn sides nulled
     """
     ask_withdrawn = t.ask.isnull() | (t.ask <= 0) | t.asksiz.isnull() | (t.asksiz <= 0)
     bid_withdrawn = t.bid.isnull() | (t.bid <= 0) | t.bidsiz.isnull() | (t.bidsiz <= 0)
@@ -96,7 +100,7 @@ def neutralize_withdrawn_quotes(t: ibis.Table) -> ibis.Table:
     return _neutralize(t, bid_withdrawn, sides="bid")
 
 
-def neutralize_crossed_quotes(t: ibis.Table) -> ibis.Table:
+def neutralize_crossed_quotes(t: "Table") -> "Table":
     """Null out both sides of a quote crossed within a single venue.
 
     A venue quoting a bid above its own ask is reporting something impossible,
@@ -106,14 +110,14 @@ def neutralize_crossed_quotes(t: ibis.Table) -> ibis.Table:
     return _neutralize(t, crossed)
 
 
-def neutralize_abnormal_spreads(t: ibis.Table, max_spread: Decimal) -> ibis.Table:
+def neutralize_abnormal_spreads(t: "Table", max_spread: Decimal) -> "Table":
     """Null out both sides of a quote whose spread is implausibly wide."""
     abnormal = ((t.ask - t.bid) > max_spread) & (t.bid > 0) & (t.ask > 0)
     return _neutralize(t, abnormal)
 
 
 def filter_quote_table(
-    t: ibis.Table,
+    t: "Table",
     keep_qu_cond: Sequence[str] | None = HJ_KEEP_QU_COND,
     exclude_canceled_quotes: bool = True,
     exclude_crossed_markets: bool = True,
@@ -123,7 +127,7 @@ def filter_quote_table(
     nbbo_only: bool = True,
     cta_nbbo_codes: Sequence[str] = CTA_NBBO_ELIGIBLE,
     utp_nbbo_codes: Sequence[str] = UTP_NBBO_ELIGIBLE,
-) -> ibis.Table:
+) -> "Table":
     """Exclude unusable quotes from the NBBO, following Holden and Jacobsen.
 
     "Exclude" means the offending side is set to null, not that the row is
@@ -134,7 +138,7 @@ def filter_quote_table(
     choice about which rows are relevant, not a data-quality repair.
 
     Args:
-        t (ibis.Table): The input quote table from the TAQ database
+        t ("Table"): The input quote table from the TAQ database
         keep_qu_cond (Sequence[str] | None): Quote conditions considered normal;
             quotes with any other condition are excluded
         exclude_canceled_quotes (bool): Exclude quotes flagged as cancelled
@@ -150,7 +154,7 @@ def filter_quote_table(
         utp_nbbo_codes (Sequence[str]): The same for the UTP feed
 
     Returns:
-        ibis.Table: The quote table with unusable sides nulled
+        "Table": The quote table with unusable sides nulled
     """
     if keep_qu_cond is not None and len(keep_qu_cond) > 0:
         # Abnormal quote condition: the quote is not usable, but the venue is
@@ -184,7 +188,7 @@ def filter_quote_table(
 
 
 def clean_quote_table(
-    t: ibis.Table,
+    t: "Table",
     keep_qu_cond: Sequence[str] | None = HJ_KEEP_QU_COND,
     exclude_canceled_quotes: bool = True,
     exclude_crossed_markets: bool = True,
@@ -195,11 +199,11 @@ def clean_quote_table(
     output_flags: bool = False,
     cta_nbbo_codes: Sequence[str] = CTA_NBBO_ELIGIBLE,
     utp_nbbo_codes: Sequence[str] = UTP_NBBO_ELIGIBLE,
-) -> ibis.Table:
+) -> "Table":
     """Clean a raw quote table from TAQ.
 
     Args:
-        t (ibis.Table): Original quote table from TAQ
+        t ("Table"): Original quote table from TAQ
         keep_qu_cond (Sequence[str] | None): Quote conditions considered normal
         exclude_canceled_quotes (bool): Exclude quotes flagged as cancelled
         exclude_crossed_markets (bool): Exclude quotes crossed within one venue
@@ -213,7 +217,7 @@ def clean_quote_table(
         utp_nbbo_codes (Sequence[str]): The same for the UTP feed
 
     Returns:
-        ibis.Table: Cleaned quote table
+        "Table": Cleaned quote table
     """
     t = t.rename({col.lower(): col for col in t.columns})
     t = merge_symbol(merge_datetime(t))

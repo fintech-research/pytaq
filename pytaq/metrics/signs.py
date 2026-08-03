@@ -6,7 +6,7 @@ from ..metrics.locks_crosses import locked_crossed_rows
 from ..utils.float_approx import float_equal, float_zero
 
 if TYPE_CHECKING:
-    from ibis.expr.types import Column, Table
+    from ibis.expr.types import BooleanValue, Column, Table, Value
 
 DEFAULT_CLNV_THRESHOLD = 0.3
 
@@ -93,26 +93,26 @@ def sign_lr(
     price: "Column",
     midpoint: "Column",
     tick_dir: "Column",
-    lock_cross: "Column",
-) -> "Column":
+    lock_cross: "BooleanValue",
+) -> "Value":
     """Compute Lee-Ready trade sign.
 
     Args:
         price (Column): Price column
         midpoint (Column): Midpoint column
         tick_dir (Column): Tick direction column
-        lock_cross (Column): Lock/cross indicator column
+        lock_cross (BooleanValue): Lock/cross indicator
 
     Returns:
-        Column: Lee-Ready trade sign
+        Value: Lee-Ready trade sign
     """
     lr_dir = tick_dir
 
     keep_tick = lock_cross | float_equal(price, midpoint)
 
     # Apply Lee-Ready logic
-    lr_dir = (~keep_tick & (price > midpoint)).ifelse(1, lr_dir)
-    lr_dir = (~keep_tick & (price < midpoint)).ifelse(-1, lr_dir)
+    lr_dir = (~keep_tick & (price > midpoint)).ifelse(ibis.literal(1), lr_dir)
+    lr_dir = (~keep_tick & (price < midpoint)).ifelse(ibis.literal(-1), lr_dir)
 
     return lr_dir
 
@@ -122,8 +122,8 @@ def sign_emo(
     best_bid: "Column",
     best_ask: "Column",
     tick_dir: "Column",
-    lock_cross: "Column",
-) -> "Column":
+    lock_cross: "BooleanValue",
+) -> "Value":
     """Compute EMO trade sign.
 
     Args:
@@ -131,15 +131,19 @@ def sign_emo(
         best_bid (Column): Best bid column
         best_ask (Column): Best ask column
         tick_dir (Column): Tick direction column
-        lock_cross (Column): Lock/cross indicator column
+        lock_cross (BooleanValue): Lock/cross indicator
 
     Returns:
-        Column: EMO trade sign
+        Value: EMO trade sign
     """
     emo_dir = tick_dir
 
-    emo_dir = (~lock_cross & float_equal(price, best_ask)).ifelse(1, emo_dir)
-    emo_dir = (~lock_cross & float_equal(price, best_bid)).ifelse(-1, emo_dir)
+    emo_dir = (~lock_cross & float_equal(price, best_ask)).ifelse(
+        ibis.literal(1), emo_dir
+    )
+    emo_dir = (~lock_cross & float_equal(price, best_bid)).ifelse(
+        ibis.literal(-1), emo_dir
+    )
 
     return emo_dir
 
@@ -149,9 +153,9 @@ def sign_clnv(
     best_bid: "Column",
     best_ask: "Column",
     tick_dir: "Column",
-    lock_cross: "Column",
+    lock_cross: "BooleanValue",
     threshold: float = DEFAULT_CLNV_THRESHOLD,
-) -> "Column":
+) -> "Value":
     """Compute CLNV trade sign.
 
     Args:
@@ -159,11 +163,11 @@ def sign_clnv(
         best_bid (Column): Best bid column
         best_ask (Column): Best ask column
         tick_dir (Column): Tick direction column
-        lock_cross (Column): Lock/cross indicator column
+        lock_cross (BooleanValue): Lock/cross indicator
         threshold (float): CLNV threshold
 
     Returns:
-        Column: CLNV trade sign
+        Value: CLNV trade sign
     """
     clnv_dir = tick_dir
 
@@ -171,16 +175,16 @@ def sign_clnv(
     bid_th = best_bid + threshold * (best_ask - best_bid)
 
     clnv_dir = (~lock_cross & (price >= ask_th) & (price <= best_ask)).ifelse(
-        1, clnv_dir
+        ibis.literal(1), clnv_dir
     )
     clnv_dir = (~lock_cross & (price <= bid_th) & (price >= best_bid)).ifelse(
-        -1, clnv_dir
+        ibis.literal(-1), clnv_dir
     )
 
     return clnv_dir
 
 
-def sign_bjz(price: "Column", ex: "Column") -> "Column":
+def sign_bjz(price: "Column", ex: "Column") -> "Value":
     """Compute BJZ retail trade sign.
 
     The BJZ (Boehmer, Jones, Zhang) algorithm classifies retail trades based on
@@ -203,7 +207,7 @@ def sign_bjz(price: "Column", ex: "Column") -> "Column":
         ex (Column): Exchange column
 
     Returns:
-        Column: BJZ trade sign (-1 for sell, +1 for buy, null for unclassified or non-off-exchange)
+        Value: BJZ trade sign (-1 sell, +1 buy, null unclassified or on-exchange)
     """
     # Only apply to off-exchange trades (exchange = 'D')
     is_off_exchange = ex == "D"
@@ -227,8 +231,8 @@ def sign_bjz(price: "Column", ex: "Column") -> "Column":
 
     # Compute sign: -1 for sell, +1 for buy, null otherwise
     bjz_sign = ibis.null().cast("int8")
-    bjz_sign = is_sell.ifelse(-1, bjz_sign)
-    bjz_sign = is_buy.ifelse(1, bjz_sign)
+    bjz_sign = is_sell.ifelse(ibis.literal(-1), bjz_sign)
+    bjz_sign = is_buy.ifelse(ibis.literal(1), bjz_sign)
 
     # Only return sign for off-exchange trades, null for others
     result = is_off_exchange.ifelse(bjz_sign, ibis.null().cast("int8"))

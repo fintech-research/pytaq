@@ -40,17 +40,22 @@ Note that `ruff format` also formats Python code blocks inside the Markdown file
 
 ## Type checking
 
-PyTAQ uses [ty](https://github.com/astral-sh/ty):
+PyTAQ targets Python 3.13 and type checks with [ty](https://github.com/astral-sh/ty):
 
 ```bash
 uv run ty check
 ```
 
-`ty` is configured under `[tool.ty]` in `pyproject.toml`. A few of its rules are deliberately switched off, and the reason is worth knowing before you turn them back on: nearly everything in this codebase is an Ibis expression, and Ibis builds its operators and column accessors dynamically. `ty` cannot follow that, so `invalid-argument-type`, `invalid-return-type` and `unsupported-operator` report noise rather than defects here.
+`ty` runs with its default rule set and no project-wide suppressions. Earlier on, `invalid-argument-type`, `invalid-return-type` and `unsupported-operator` were switched off because they produced a cascade of noise; that turned out to be imprecise annotations rather than a limitation of the checker, and once the expression types were made precise the rules were re-enabled and the noise went away.
 
-What `ty` is good at on this codebase is call signatures and imports, and those rules are left on. They earn their keep: `ty` independently caught two real bugs that the test suite missed.
+Two conventions keep it that way, and both are worth knowing before you add code:
 
-`pyproject.toml` also carries some narrowly scoped, temporary suppressions, each commented with the issue number that will remove it. They exist so the pre-commit hook stays usable while those bugs are still open. If you close one of those issues, delete its block.
+- **Annotate the expression type you actually return.** Most functions here build a derived expression, which is a `Value`, not the `Column` they started from. Saying `Column` when you mean `Value` is what produced the original cascade.
+- **Compare expressions against expressions.** `diff <= atol` with a bare float is coerced at runtime but is not what the operator accepts; write `diff <= ibis.literal(atol)`. The same goes for `ifelse(1, ...)`, which wants `ibis.literal(1)`.
+
+The only suppressions in the tree are two inline `# ty: ignore` comments on tests that pass deliberately invalid arguments, which is the point of those tests.
+
+`ty` earns its keep: it independently caught two real bugs the test suite missed.
 
 ## Python Style Guidelines
 
