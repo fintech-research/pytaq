@@ -1,21 +1,26 @@
+from typing import TYPE_CHECKING
+
 import ibis
+
+if TYPE_CHECKING:
+    from ibis.expr.types import Table
 
 
 def merge_quotes_nbbo(
-    nbbo: ibis.Table, quote: ibis.Table, keep_changes_only: bool = True
-) -> ibis.Table:
+    nbbo: "Table", quote: "Table", keep_changes_only: bool = True
+) -> "Table":
     """Merges the NBBO and Quote tables to create the official complete NBBO.
 
     With default options used to clean the input tables, this function should
     yield the same results as the official complete NBBO table in WRDS.
 
     Args:
-        nbbo (ibis.Table): NBBO quotes
-        quote (ibis.Table): Quotes
+        nbbo ("Table"): NBBO quotes
+        quote ("Table"): Quotes
         keep_changes_only (bool, optional): Only keep the last observation for each timestamp. Defaults to True.
 
     Returns:
-        ibis.Table: Official complete NBBO
+        "Table": Official complete NBBO
     """
     # Union the tables
     t = nbbo.union(quote)

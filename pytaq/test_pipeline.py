@@ -169,7 +169,8 @@ def test_filter_timestamp_with_no_bounds_is_a_no_op(cleaned_nbbo):
 
 def test_filter_timestamp_rejects_a_bad_argument(cleaned_nbbo):
     with pytest.raises(ValueError, match="Ibis Column or a column name"):
-        filter_timestamp(cleaned_nbbo, timestamp=42)
+        # Deliberately invalid: this is the test.
+        filter_timestamp(cleaned_nbbo, timestamp=42)  # ty: ignore[invalid-argument-type]
 
 
 def test_compute_weighted_spreads_daily(cleaned_nbbo):

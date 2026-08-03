@@ -14,7 +14,7 @@ pip install 'pytaq[postgres]'    # WRDS postgres server
 pip install 'pytaq[all]'         # both
 ```
 
-Python 3.11 or later.
+Python 3.13 or later.
 
 ## Usage
 

@@ -12,14 +12,14 @@ from .locks_crosses import filter_locks_crosses
 from .signs import BASE_SIGNS, RETAIL_SIGNS
 
 if TYPE_CHECKING:
-    from ibis.expr.types import Column, Table
+    from ibis.expr.types import Column, Table, Value
 
 
 def dollar_realized_spread(
     sign: "Column",
     price: "Column",
     midpoint_next: "Column",
-) -> "Column":
+) -> "Value":
     """Compute dollar realized spread.
 
     Args:
@@ -28,7 +28,7 @@ def dollar_realized_spread(
         midpoint_next (Column): Next midpoint column
 
     Returns:
-        Column: Dollar realized spread
+        Value: Dollar realized spread
     """
     s = sign * (price - midpoint_next) * 2
     return correct_float_approx(s, price, midpoint_next)
@@ -39,7 +39,7 @@ def percent_realized_spread(
     price: "Column",
     midpoint_next: "Column",
     percent_method: PercentMethod = DEFAULT_PERCENT_METHOD,
-) -> "Column":
+) -> "Value":
     """Compute percent realized spread.
 
     Args:
@@ -48,7 +48,7 @@ def percent_realized_spread(
         midpoint_next (Column): Next midpoint column
 
     Returns:
-        Column: Percent realized spread
+        Value: Percent realized spread
     """
     check_percent_method(percent_method)
     if percent_method == "ratio":
@@ -64,7 +64,7 @@ def dollar_price_impact(
     sign: "Column",
     midpoint: "Column",
     midpoint_next: "Column",
-) -> "Column":
+) -> "Value":
     """Compute dollar price impact.
 
     Args:
@@ -73,7 +73,7 @@ def dollar_price_impact(
         midpoint_next (Column): Next midpoint column
 
     Returns:
-        Column: Dollar price impact
+        Value: Dollar price impact
     """
     s = sign * (midpoint_next - midpoint) * 2
     return correct_float_approx(s, midpoint, midpoint_next)
@@ -84,7 +84,7 @@ def percent_price_impact(
     midpoint: "Column",
     midpoint_next: "Column",
     percent_method: PercentMethod = DEFAULT_PERCENT_METHOD,
-) -> "Column":
+) -> "Value":
     """Compute percent price impact.
 
     Args:
@@ -93,7 +93,7 @@ def percent_price_impact(
         midpoint_next (Column): Next midpoint column
 
     Returns:
-        Column: Percent price impact
+        Value: Percent price impact
     """
     check_percent_method(percent_method)
     if percent_method == "ratio":

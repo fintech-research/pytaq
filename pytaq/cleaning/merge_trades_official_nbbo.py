@@ -1,6 +1,8 @@
 import datetime
+from typing import TYPE_CHECKING
 
-import ibis
+if TYPE_CHECKING:
+    from ibis.expr.types import Table
 
 #: Holden and Jacobsen (2014), section II.B: "For DTAQ, we match trades and
 #: quotes with a one millisecond lag (i.e., a given trade is matched to the
@@ -9,10 +11,10 @@ HJ_TRADE_QUOTE_LAG = datetime.timedelta(milliseconds=1)
 
 
 def merge_trades_official_nbbo(
-    trades: ibis.Table,
-    off_nbbo: ibis.Table,
+    trades: "Table",
+    off_nbbo: "Table",
     lag: datetime.timedelta = HJ_TRADE_QUOTE_LAG,
-) -> ibis.Table:
+) -> "Table":
     """Match each trade to the NBBO in force `lag` before it.
 
     The lag exists to stop a quote that was itself a consequence of the trade
@@ -30,14 +32,14 @@ def merge_trades_official_nbbo(
     columns rather than being dropped, so trade counts are preserved.
 
     Args:
-        trades (ibis.Table): Cleaned trades
-        off_nbbo (ibis.Table): Cleaned official NBBO
+        trades ("Table"): Cleaned trades
+        off_nbbo ("Table"): Cleaned official NBBO
         lag (datetime.timedelta): How far before the trade the quote must have
             been in force. Defaults to one millisecond, following H&J. Pass
             `timedelta(0)` to match contemporaneous quotes instead
 
     Returns:
-        ibis.Table: Trades with the prevailing NBBO attached, quote columns
+        "Table": Trades with the prevailing NBBO attached, quote columns
         suffixed `_quote` where names collide
     """
     # `on` carries the inequality that makes this an as-of join, and must be

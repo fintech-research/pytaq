@@ -4,7 +4,7 @@ Thank you for considering contributing to PyTAQ! This guide will help you set up
 
 ## Prerequisites
 
-- Python 3.11 or higher
+- Python 3.13 or higher
 - `uv` package manager
 - Git
 

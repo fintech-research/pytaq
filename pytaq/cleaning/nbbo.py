@@ -6,6 +6,9 @@ from typing import TYPE_CHECKING
 import ibis
 
 if TYPE_CHECKING:
+    from ibis.expr.types import Table
+
+if TYPE_CHECKING:
     from ibis.expr.builders import WindowBuilder
 
 from ..hj_defaults import (
@@ -36,9 +39,19 @@ NBBO_COLS_FLAGS = [
 ]
 
 
-def filter_empty_quotes(t: ibis.Table) -> ibis.Table:
-    # NOTE: This filtering step follows H&J methodology but may need review.
-    # Consider whether empty quotes should be preserved for complete market picture.
+def filter_empty_quotes(t: "Table") -> "Table":
+    """Drop rows where neither side of the quote is usable.
+
+    A row with no usable bid *and* no usable ask carries no information about
+    the NBBO, so unlike the per-side filters in `cleaning.quotes` there is
+    nothing to neutralise and the row goes.
+
+    Args:
+        t (Table): NBBO table
+
+    Returns:
+        Table: Table without wholly empty quotes
+    """
     # Delete if both ask and bid (or their size) are 0 or None
     empty_sel = (
         ((t.best_ask <= 0) & (t.best_bid <= 0))
@@ -49,14 +62,14 @@ def filter_empty_quotes(t: ibis.Table) -> ibis.Table:
     return t.filter(~empty_sel)
 
 
-def compute_spreads_best_quotes(t: ibis.Table) -> ibis.Table:
+def compute_spreads_best_quotes(t: "Table") -> "Table":
     """Compute spreads and best quotes.
 
     Args:
-        t (ibis.Table): Input table
+        t ("Table"): Input table
 
     Returns:
-        ibis.Table: Table with spreads and best quotes computed
+        "Table": Table with spreads and best quotes computed
     """
     # Compute spread and midpoint
     t = t.mutate(spread=t.best_ask - t.best_bid, midpoint=(t.best_ask + t.best_bid) / 2)
@@ -96,7 +109,7 @@ def compute_spreads_best_quotes(t: ibis.Table) -> ibis.Table:
     return t
 
 
-def _quote_window(t: ibis.Table, sequence_col: str | None) -> "WindowBuilder":
+def _quote_window(t: "Table", sequence_col: str | None) -> "WindowBuilder":
     """Window over quotes for one symbol, in order.
 
     Timestamps are not unique: a single day of AAPL quotes carries around
@@ -115,22 +128,22 @@ def _quote_window(t: ibis.Table, sequence_col: str | None) -> "WindowBuilder":
 
 
 def filter_abnormal_spreads(
-    t: ibis.Table,
+    t: "Table",
     max_spread: Decimal,
     max_quote_change: Decimal,
     sequence_col: str | None = "qu_seqnum",
-) -> ibis.Table:
+) -> "Table":
     """Filter rows if quoted spread or quote change too large.
 
     Args:
-        t (ibis.Table): Input table
+        t ("Table"): Input table
         max_spread (Decimal): Maximum quoted spread, in dollars
         max_quote_change (Decimal): Maximum quote change, in dollars
         sequence_col (str | None): Column breaking ties between quotes sharing
             a timestamp. Without it the result is not reproducible.
 
     Returns:
-        ibis.Table: Table with abnormal spreads filtered
+        "Table": Table with abnormal spreads filtered
     """
     # Get previous midpoint
     # Note: H&J only sorts on sym_root, not sym_suffix.
@@ -163,18 +176,16 @@ def filter_abnormal_spreads(
     return t
 
 
-def filter_changes_only(
-    t: ibis.Table, sequence_col: str | None = "qu_seqnum"
-) -> ibis.Table:
+def filter_changes_only(t: "Table", sequence_col: str | None = "qu_seqnum") -> "Table":
     """Keep only changes, i.e. consecutive entries with different quotes.
 
     Args:
-        t (ibis.Table): Input table
+        t ("Table"): Input table
         sequence_col (str | None): Column breaking ties between quotes sharing
             a timestamp. Without it the result is not reproducible.
 
     Returns:
-        ibis.Table: Table with only changed quotes
+        "Table": Table with only changed quotes
     """
     window = _quote_window(t, sequence_col)
 
@@ -205,7 +216,7 @@ def filter_changes_only(
 
 
 def clean_nbbo(
-    t: ibis.Table,
+    t: "Table",
     start_time: datetime.time | None = HJ_START_TIME_QUOTES,
     end_time: datetime.time | None = HJ_END_TIME_QUOTES,
     keep_qu_cond: Sequence[str] = HJ_KEEP_QU_COND,
@@ -217,11 +228,11 @@ def clean_nbbo(
     max_quote_change: Decimal = HJ_MAX_QUOTE_CHANGE,
     output_flags: bool = False,
     sequence_col: str | None = "qu_seqnum",
-) -> ibis.Table:
+) -> "Table":
     """Clean a raw NBBO table, following Holden and Jacobsen.
 
     Args:
-        t (ibis.Table): Raw NBBO table
+        t ("Table"): Raw NBBO table
         start_time (datetime.time | None): Start of the quote window
         end_time (datetime.time | None): End of the quote window
         keep_qu_cond (Sequence[str]): Quote conditions to keep
@@ -236,7 +247,7 @@ def clean_nbbo(
             timestamp. Without it the result is not reproducible between runs.
 
     Returns:
-        ibis.Table: Cleaned NBBO table
+        "Table": Cleaned NBBO table
     """
     t = t.rename({col.lower(): col for col in t.columns})
     t = merge_datetime(merge_symbol(t))

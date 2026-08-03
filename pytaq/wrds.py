@@ -1,5 +1,5 @@
 from sys import platform, version_info
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import ibis
 
@@ -7,6 +7,7 @@ from .tables import DEFAULT_DATABASE
 
 if TYPE_CHECKING:
     from ibis.backends.postgres import Backend as PostgresBackend
+    from ibis.expr.types import Table
 
 __all__ = ["DEFAULT_DATABASE", "connect", "get_table"]
 
@@ -28,8 +29,27 @@ def connect(
     database: str = WRDS_POSTGRES_DB,
     sslmode: str = "require",
     application_name: str = APPNAME,
-    **kwargs,
+    **kwargs: Any,
 ) -> "PostgresBackend":
+    """Open a connection to the WRDS postgres server.
+
+    Args:
+        username (str): WRDS username
+        password (str): WRDS password
+        host (str): Server hostname
+        port (int): Server port
+        database (str): Database name
+        sslmode (str): TLS mode; WRDS requires at least "require"
+        application_name (str): Reported to WRDS for usage tracking
+        **kwargs (Any): Passed through to `ibis.postgres.connect`
+
+    Returns:
+        PostgresBackend: An open connection
+
+    Raises:
+        ImportError: If the postgres extra is not installed
+        ConnectionError: If the server rejects the connection
+    """
     # Imported lazily so that pytaq.wrds stays importable without the postgres
     # extra installed; only connecting actually needs the driver.
     try:
@@ -64,7 +84,19 @@ def get_table(
     symbols: list[str] | None,
     table_name: str,
     database: str,
-) -> ibis.Table:
+) -> "Table":
+    """Read one daily TAQ table from the WRDS server.
+
+    Args:
+        con (PostgresBackend): Connection from :func:`connect`
+        symbols (list[str] | None): Restrict to these root symbols, or None for
+            all of them
+        table_name (str): Table name, e.g. "ctm_20200102"
+        database (str): Schema holding the table, usually "taqmsec"
+
+    Returns:
+        Table: The raw table, ready for the cleaning functions
+    """
     t = con.table(table_name, database=database)
     if symbols is not None:
         t = t.filter(t.sym_root.isin(symbols))

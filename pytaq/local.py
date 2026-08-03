@@ -23,9 +23,7 @@ run the pipeline.
 
 import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
-
-import ibis
+from typing import TYPE_CHECKING, Any
 
 from .tables import (
     get_nbbo_table_name,
@@ -36,6 +34,7 @@ from .tables import (
 
 if TYPE_CHECKING:
     from ibis.backends.duckdb import Backend as DuckDBBackend
+    from ibis.expr.types import Table
 
 __all__ = [
     "connect",
@@ -49,7 +48,7 @@ __all__ = [
 SUPPORTED_EXTENSIONS = ("parquet", "csv", "csv.gz")
 
 
-def connect(**kwargs) -> "DuckDBBackend":
+def connect(**kwargs: Any) -> "DuckDBBackend":
     """Open an in-memory DuckDB backend for reading local TAQ files.
 
     Args:
@@ -85,7 +84,7 @@ def get_table(
     data_dir: str | Path,
     table_name: str,
     symbols: list[str] | None = None,
-) -> ibis.Table:
+) -> "Table":
     """Read one daily TAQ table from a local file.
 
     Args:
@@ -103,7 +102,11 @@ def get_table(
     """
     path = _find_file(Path(data_dir), table_name)
 
-    t = con.read_parquet(path) if path.name.endswith(".parquet") else con.read_csv(path)
+    t = (
+        con.read_parquet(str(path))
+        if path.name.endswith(".parquet")
+        else con.read_csv(str(path))
+    )
 
     if symbols is not None:
         # Match the postgres path, which filters on sym_root. Fall back to the
@@ -119,7 +122,7 @@ def get_trades(
     data_dir: str | Path,
     date: datetime.date | datetime.datetime,
     symbols: list[str] | None = None,
-) -> ibis.Table:
+) -> "Table":
     """Read the trades table for a date."""
     return get_table(con, data_dir, get_trades_table_name(date), symbols)
 
@@ -129,7 +132,7 @@ def get_quotes(
     data_dir: str | Path,
     date: datetime.date | datetime.datetime,
     symbols: list[str] | None = None,
-) -> ibis.Table:
+) -> "Table":
     """Read the quotes table for a date."""
     return get_table(con, data_dir, get_quotes_table_name(date), symbols)
 
@@ -139,7 +142,7 @@ def get_nbbo(
     data_dir: str | Path,
     date: datetime.date | datetime.datetime,
     symbols: list[str] | None = None,
-) -> ibis.Table:
+) -> "Table":
     """Read the NBBO table for a date."""
     return get_table(con, data_dir, get_nbbo_table_name(date), symbols)
 
@@ -149,7 +152,7 @@ def get_official_complete_nbbo(
     data_dir: str | Path,
     date: datetime.date | datetime.datetime,
     symbols: list[str] | None = None,
-) -> ibis.Table:
+) -> "Table":
     """Read the official complete NBBO table for a date."""
     return get_table(
         con, data_dir, get_official_complete_nbbo_table_name(date), symbols
