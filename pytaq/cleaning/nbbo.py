@@ -24,13 +24,18 @@ from ..hj_defaults import (
 )
 from .common import filter_by_time, merge_datetime, merge_symbol
 
+# Kept aligned with QUOTES_COLS_CLEAN: merge_quotes_nbbo unions the two, so
+# their schemas must match, and it dedups on qu_seqnum.
 NBBO_COLS_CLEAN = [
     "timestamp",
     "symbol",
     "best_bid",
     "best_bidsizeshares",
+    "best_bidex",
     "best_ask",
     "best_asksizeshares",
+    "best_askex",
+    "qu_seqnum",
 ]
 
 NBBO_COLS_FLAGS = [

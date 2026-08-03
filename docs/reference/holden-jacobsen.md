@@ -104,3 +104,17 @@ On the weighted averages: H&J sum the full weight column, which is correct for t
 - Holden, C. and S. Jacobsen (2014), "Liquidity Measurement Problems in Fast, Competitive Markets: Expensive and Cheap Solutions", *Journal of Finance* 69(4)
 - Internet Appendix to the above, including the September 2013 SAS implementation
 - Daily TAQ Client Specification, 6 August 2013 edition
+
+
+## Validation against WRDS
+
+Reconstructing the complete NBBO from the NBBO and quote files, AAPL on 2016-12-07:
+
+| | rows |
+|---|---|
+| reconstructed, `keep_changes_only=False` | 571,268 |
+| WRDS `complete_nbbo`, all rows | 569,448 |
+| reconstructed, `keep_changes_only=True` | 550,307 |
+| WRDS `complete_nbbo`, distinct timestamps | 548,522 |
+
+Both settings land within 0.33% of the matching WRDS figure, and **99.88% of rows present in both agree exactly on best bid and best ask**. The residual is recorded in `TO_VERIFY.md`.

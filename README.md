@@ -27,25 +27,23 @@ Three supported paths. Only opening the data differs; cleaning and metrics are i
 ```python
 import datetime
 
-from pytaq import (
-    clean_official_complete_nbbo,
-    clean_trades,
-    local,
-    merge_trades_official_nbbo,
-    sign_trades,
-)
+from pytaq import local, process_day
 
 con = local.connect()
 date = datetime.date(2020, 1, 2)
 
-trades = clean_trades(local.get_trades(con, "data/", date, symbols=["AAPL"]))
-nbbo = clean_official_complete_nbbo(
-    local.get_official_complete_nbbo(con, "data/", date, symbols=["AAPL"])
+day = process_day(
+    local.get_trades(con, "data/", date, symbols=["AAPL"]),
+    local.get_official_complete_nbbo(con, "data/", date, symbols=["AAPL"]),
+    date=date,
 )
 
-signed = sign_trades(merge_trades_official_nbbo(trades, nbbo))
-print(signed.execute().head())
+print(day.execute())  # one row per symbol, the standard measures
 ```
+
+`process_day` runs the standard Holden and Jacobsen pipeline: clean, match trades to quotes one millisecond back, sign, and aggregate. Every intermediate stage is on the returned object (`day.signed`, `day.effective_spreads`, and so on) if you need to inspect or extend it, and every underlying option is a keyword argument.
+
+The stages are also available individually if you would rather assemble them yourself.
 
 Nothing runs until `.execute()`. Ibis builds an expression and hands the whole thing to the engine.
 

@@ -28,7 +28,7 @@ try:
 except PackageNotFoundError:  # pragma: no cover - only when running from source
     __version__ = "0.0.0+unknown"
 
-from . import cleaning, hj_defaults, local, metrics, tables, utils, wrds
+from . import cleaning, hj_defaults, local, metrics, pipeline, tables, utils, wrds
 from .cleaning import (
     clean_nbbo,
     clean_official_complete_nbbo,
@@ -45,6 +45,7 @@ from .metrics import (
     compute_weighted_averages,
     sign_trades,
 )
+from .pipeline import DayResult, process_day
 from .tables import (
     get_nbbo_table_name,
     get_official_complete_nbbo_table_name,
@@ -53,6 +54,7 @@ from .tables import (
 )
 
 __all__ = [
+    "DayResult",
     "__version__",
     "clean_nbbo",
     "clean_official_complete_nbbo",
@@ -73,6 +75,8 @@ __all__ = [
     "merge_quotes_nbbo",
     "merge_trades_official_nbbo",
     "metrics",
+    "pipeline",
+    "process_day",
     "sign_trades",
     "tables",
     "utils",
