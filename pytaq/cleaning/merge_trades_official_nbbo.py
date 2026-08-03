@@ -1,6 +1,8 @@
 import datetime
 from typing import TYPE_CHECKING
 
+from .common import TIMESTAMP_NS_COL
+
 if TYPE_CHECKING:
     from ibis.expr.types import Table
 
@@ -28,6 +30,12 @@ def merge_trades_official_nbbo(
     3.3% to 5.1%. They argue against a longer arbitrary lag on the grounds that
     it will not stay appropriate as trading speeds change.
 
+    Matching is done on `timestamp_ns` when both sides carry it, so the lag is
+    applied at nanosecond precision rather than to microsecond-truncated
+    values. TAQ resolves events to the nanosecond and a postgres timestamp
+    cannot, so matching on `timestamp` alone would treat everything inside a
+    microsecond as simultaneous.
+
     A trade that precedes any usable quote for its symbol keeps null quote
     columns rather than being dropped, so trade counts are preserved.
 
@@ -46,11 +54,17 @@ def merge_trades_official_nbbo(
     # backward-looking: a trade is matched to a quote that already existed.
     # `predicates` carries the equi-join keys. There is no `by` or `suffixes`
     # argument; overlapping column names are disambiguated with `rname`.
-    trade_time = trades.timestamp - lag if lag else trades.timestamp
+    if TIMESTAMP_NS_COL in trades.columns and TIMESTAMP_NS_COL in off_nbbo.columns:
+        lag_ns = round(lag.total_seconds() * 1_000_000_000)
+        trade_time = trades[TIMESTAMP_NS_COL] - lag_ns
+        quote_time = off_nbbo[TIMESTAMP_NS_COL]
+    else:
+        trade_time = trades.timestamp - lag if lag else trades.timestamp
+        quote_time = off_nbbo.timestamp
 
     return trades.asof_join(
         off_nbbo,
-        on=trade_time >= off_nbbo.timestamp,
+        on=trade_time >= quote_time,
         predicates=[trades.symbol == off_nbbo.symbol],
         rname="{name}_quote",
     )

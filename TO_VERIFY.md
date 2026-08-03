@@ -45,9 +45,11 @@ trading day 2020-01-02, using AAPL (Nasdaq-listed) and A (NYSE-listed).
       this looks safe, but it has not been checked over a full day or across
       listing venues.
 
-- [ ] Whether `time_m_nano` matters. Sub-microsecond ordering is currently
-      dropped entirely. It may affect sequencing of quotes at the same
-      microsecond, which `merge_quotes_nbbo` resolves with `qu_seqnum` instead.
+- [x] **Does `time_m_nano` matter?** Yes. On AAPL for 2020-01-02, microsecond
+      timestamps leave 7,427 trades (2.62%) and 2,655 NBBO rows (0.67%) sharing
+      an instant with another row. Nanoseconds resolve every one: distinct
+      counts at nanosecond precision equal the row counts exactly. It is now
+      carried as `timestamp_ns` and used for ordering and matching. See #52.
 
 - [ ] Confirm the cleaning output reproduces the SAS / Holden and Jacobsen
       reference results on a known sample date. No longer blocked: the pipeline

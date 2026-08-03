@@ -345,3 +345,71 @@ def test_filter_by_time_rejects_an_unusable_time_m(duckdb_con):
 
     with pytest.raises(TypeError, match="time or a numeric"):
         filter_by_time(table, datetime.time(9, 30), datetime.time(16, 0))
+
+
+# ---------------------------------------------------------------------------
+# Nanosecond precision (#52)
+#
+# TAQ splits the timestamp: time_m carries microseconds, time_m_nano the 0-999
+# remainder inside that microsecond. A postgres timestamp cannot hold
+# nanoseconds, so the full precision lives in an integer key instead.
+# ---------------------------------------------------------------------------
+
+
+def test_timestamp_ns_uses_the_nanosecond_remainder(duckdb_con):
+    frame = pd.DataFrame(
+        {
+            "date": [datetime.date(2020, 1, 2)] * 2,
+            "time_m": [datetime.time(9, 30, 0, 64010)] * 2,
+            "time_m_nano": [249, 251],
+        }
+    )
+    table = duckdb_con.create_table("with_nanos", frame)
+
+    result = merge_datetime(table).execute()
+
+    # Same microsecond, so the timestamps tie...
+    assert result["timestamp"].iloc[0] == result["timestamp"].iloc[1]
+    # ...but the nanosecond key separates them, by exactly the remainder.
+    assert result["timestamp_ns"].iloc[1] - result["timestamp_ns"].iloc[0] == 2
+    assert result["timestamp_ns"].iloc[0] % 1000 == 249
+
+
+def test_timestamp_ns_without_a_nanosecond_column(duckdb_con):
+    """Local exports carry no remainder; the key is still produced."""
+    frame = pd.DataFrame(
+        {
+            "date": [datetime.date(2020, 1, 2)],
+            "time_m": [datetime.time(9, 30, 0, 64010)],
+        }
+    )
+    table = duckdb_con.create_table("without_nanos", frame)
+
+    result = merge_datetime(table).execute()
+
+    assert result["timestamp_ns"].iloc[0] % 1000 == 0
+
+
+def test_timestamp_ns_agrees_with_the_timestamp(duckdb_con):
+    """The integer key and the timestamp must describe the same instant."""
+    frame = pd.DataFrame(
+        {
+            "date": [datetime.date(2020, 1, 2)] * 3,
+            "time_m": _TIMES,
+            "time_m_nano": [0, 0, 0],
+        }
+    )
+    table = duckdb_con.create_table("ns_agrees", frame)
+
+    result = merge_datetime(table).execute()
+
+    for _, row in result.iterrows():
+        expected = int(pd.Timestamp(row["timestamp"]).value)
+        assert row["timestamp_ns"] == expected
+
+
+def test_both_time_m_shapes_agree_on_the_nanosecond_key(time_typed, numeric_typed):
+    from_time = merge_datetime(time_typed).execute().sort_values("row")
+    from_numeric = merge_datetime(numeric_typed).execute().sort_values("row")
+
+    assert list(from_time["timestamp_ns"]) == list(from_numeric["timestamp_ns"])

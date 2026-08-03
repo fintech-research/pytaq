@@ -2,6 +2,7 @@ from collections.abc import Iterable
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
+from ..cleaning.common import TIMESTAMP_NS_COL
 from ..utils.float_approx import correct_float_approx
 from .conventions import (
     DEFAULT_PERCENT_METHOD,
@@ -209,16 +210,27 @@ def merge_future_nbbo(
     Returns:
         Table: Input table with the future NBBO and its midpoint attached
     """
-    future = nbbo_table.select(
-        [timestamp_col, symbol_col, best_bid_col, best_ask_col]
-    ).mutate(midpoint=(nbbo_table[best_bid_col] + nbbo_table[best_ask_col]) / 2)
+    ns = TIMESTAMP_NS_COL in table.columns and TIMESTAMP_NS_COL in nbbo_table.columns
+    keep = [timestamp_col, symbol_col, best_bid_col, best_ask_col]
+    if ns:
+        keep.append(TIMESTAMP_NS_COL)
 
-    # Read the quote in force at trade time + delay.
-    horizon = table[timestamp_col] + delay
+    future = nbbo_table.select(keep).mutate(
+        midpoint=(nbbo_table[best_bid_col] + nbbo_table[best_ask_col]) / 2
+    )
+
+    # Read the quote in force at trade time + delay, at nanosecond precision
+    # where the source provides it.
+    if ns:
+        horizon = table[TIMESTAMP_NS_COL] + round(delay.total_seconds() * 1_000_000_000)
+        quote_time = future[TIMESTAMP_NS_COL]
+    else:
+        horizon = table[timestamp_col] + delay
+        quote_time = future[timestamp_col]
 
     return table.asof_join(
         future,
-        on=horizon >= future[timestamp_col],
+        on=horizon >= quote_time,
         predicates=[table[symbol_col] == future[symbol_col]],
         rname="{name}" + suffix,
     )

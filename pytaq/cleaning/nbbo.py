@@ -22,7 +22,12 @@ from ..hj_defaults import (
     HJ_MAX_SPREAD,
     HJ_START_TIME_QUOTES,
 )
-from .common import filter_by_time, merge_datetime, merge_symbol
+from .common import (
+    TIMESTAMP_NS_COL,
+    filter_by_time,
+    merge_datetime,
+    merge_symbol,
+)
 
 # Kept aligned with QUOTES_COLS_CLEAN: merge_quotes_nbbo unions the two, so
 # their schemas must match, and it dedups on qu_seqnum.
@@ -122,11 +127,14 @@ def _quote_window(t: "Table", sequence_col: str | None) -> "WindowBuilder":
     timestamp alone therefore leaves `lag()` free to pick any of the tied rows,
     and the output changes between runs of the same query on the same data.
 
-    `sequence_col` breaks those ties. `qu_seqnum` is the natural choice and is
-    present on the NBBO and quote tables. If it is absent the window falls back
-    to timestamp alone, which still works but is not reproducible.
+    Nanoseconds resolve most of them: `timestamp_ns` carries the full precision
+    TAQ provides, where `timestamp` is truncated to microseconds. `sequence_col`
+    breaks whatever remains, and is the only tiebreak on sources with no
+    nanosecond column. Without either the window falls back to `timestamp`
+    alone, which still works but is not reproducible.
     """
-    order = [t.symbol, t.timestamp]
+    order = [t.symbol]
+    order.append(t[TIMESTAMP_NS_COL] if TIMESTAMP_NS_COL in t.columns else t.timestamp)
     if sequence_col is not None and sequence_col in t.columns:
         order.append(t[sequence_col])
     return ibis.window(order_by=order, group_by=[t.symbol])
