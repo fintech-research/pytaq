@@ -73,6 +73,10 @@ nav:
       - Installation: getting-started/installation.md
       - Quick Start: getting-started/quickstart.md
       - Configuration: getting-started/configuration.md
+  - Guide:
+      - Methodology and defaults: guide/methodology.md
+      - Performance: guide/performance.md
+      - Troubleshooting: guide/troubleshooting.md
   - User Guide:
       - Data Cleaning: user-guide/cleaning.md
       - Computing Metrics: user-guide/metrics.md

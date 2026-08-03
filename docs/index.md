@@ -6,27 +6,36 @@ PyTAQ implements the standard cleaning and liquidity-metric pipeline for TAQ dat
 
 ## Three ways to use it
 
-| | What it is | Install |
-|---|---|---|
-| On the WRDS cloud | Run on WRDS's own machines, against their postgres server | `pytaq[postgres]` |
-| Local, remote data | Run on your laptop, query the WRDS postgres server | `pytaq[postgres]` |
-| Local, local data | Run on your laptop, against local TAQ files | `pytaq[duckdb]` |
+| | What it is | Install | Good for |
+|---|---|---|---|
+| On the WRDS cloud | Run on WRDS's own machines, against their postgres server | `pytaq[postgres]` | Anything, the data is local to the compute |
+| Local, remote data | Run on your laptop, query the WRDS postgres server | `pytaq[postgres]` | **Small queries only** |
+| Local, local data | Run on your laptop, against local TAQ files | `pytaq[duckdb]` | Bulk work |
 
 Only the first step differs. Cleaning and metrics are identical in all three.
+
+A word of warning on the middle path: querying the WRDS server from your own machine runs the as-of joins and window functions remotely, over the network, on a shared server. It is fine for a few symbols or part of a day and slow for anything more. See [Performance](guide/performance.md) for the pattern to use instead.
 
 ## A short example
 
 ```python
 import datetime
 
-from pytaq import clean_trades, local
+from pytaq import local, process_day
 
 con = local.connect()
-raw = local.get_trades(con, "data/", datetime.date(2020, 1, 2), symbols=["AAPL"])
-trades = clean_trades(raw)
+date = datetime.date(2020, 1, 2)
 
-print(trades.execute().head())
+day = process_day(
+    local.get_trades(con, "data/", date, symbols=["AAPL"]),
+    local.get_official_complete_nbbo(con, "data/", date, symbols=["AAPL"]),
+    date=date,
+)
+
+print(day.execute())  # one row per symbol
 ```
+
+`process_day` runs the whole Holden and Jacobsen pipeline: clean, match trades to the quote in force a millisecond earlier, sign, and aggregate. Every intermediate stage is on the returned object, and every option is a keyword argument. The individual functions remain available if you would rather assemble it yourself.
 
 ## What it does
 
@@ -42,7 +51,10 @@ print(trades.execute().head())
 
 - [Installation](getting-started/installation.md), which extra you need
 - [Quick start](getting-started/quickstart.md), a worked example for each of the three paths
-- [API reference](api/cleaning.md)
+- [Methodology and defaults](guide/methodology.md), every choice PyTAQ makes and why
+- [Performance](guide/performance.md), which path to use for what
+- [Troubleshooting](guide/troubleshooting.md)
+- [Holden and Jacobsen conformance](reference/holden-jacobsen.md), where PyTAQ matches the paper and where it deliberately does not
 
 ## A note on backends
 
