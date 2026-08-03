@@ -5,10 +5,16 @@ if TYPE_CHECKING:
     from ibis.expr.types import Table
 
 from ..hj_defaults import HJ_END_TIME_TRADES, HJ_START_TIME_TRADES
-from .common import filter_by_time, merge_datetime, merge_symbol
+from .common import TIMESTAMP_NS_COL, filter_by_time, merge_datetime, merge_symbol
 
+# `timestamp_ns` is kept, not dropped. Everything downstream that needs event
+# ordering or an exact interval reads it: the trade-to-quote match, the T+horizon
+# match, the tick test and the time a quote is in force. Dropping it here silently
+# demoted all of those to the microsecond `timestamp`, which is what a postgres
+# timestamp can hold but not what TAQ resolves events to.
 TRADES_COLS_CLEAN = [
     "timestamp",
+    TIMESTAMP_NS_COL,
     "symbol",
     "ex",
     "size",

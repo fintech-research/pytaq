@@ -30,9 +30,11 @@ from .common import (
 )
 
 # Kept aligned with QUOTES_COLS_CLEAN: merge_quotes_nbbo unions the two, so
-# their schemas must match, and it dedups on qu_seqnum.
+# their schemas must match, and it dedups on qu_seqnum. `timestamp_ns` is carried
+# through for the same reason as in TRADES_COLS_CLEAN.
 NBBO_COLS_CLEAN = [
     "timestamp",
+    TIMESTAMP_NS_COL,
     "symbol",
     "best_bid",
     "best_bidsizeshares",

@@ -186,6 +186,90 @@ def test_compute_quote_inforce_basic(con):
     assert abs(result["inforce"].iloc[2] - last_inforce) < 1e-6
 
 
+def test_compute_quote_inforce_is_a_duration_not_a_boundary_count(con):
+    """Sub-second quote lives carry their real duration.
+
+    This is the case whole-second fixtures cannot see. `delta(unit="second")`
+    truncates both sides before subtracting, so it returns the number of
+    one-second boundaries crossed: 0 for a quote replaced 900ms later, 1 for one
+    replaced 200ms later that happens to straddle a boundary. DTAQ quote lives
+    are overwhelmingly sub-second, so that left most quotes weightless.
+    Holden and Jacobsen difference a fractional-second time, which is what these
+    numbers are.
+    """
+    data = pd.DataFrame(
+        {
+            "symbol": ["AAPL"] * 4,
+            "timestamp": pd.to_datetime(
+                [
+                    "2020-01-02 09:30:00.000",
+                    "2020-01-02 09:30:00.900",
+                    "2020-01-02 09:30:01.100",
+                    "2020-01-02 09:30:03.500",
+                ]
+            ),
+        }
+    )
+    table = con.create_table("subsecond", data)
+
+    result = compute_quote_inforce(
+        table, end_timestamp=datetime.datetime(2020, 1, 2, 16, 0)
+    ).execute()
+
+    assert result["inforce"].iloc[0] == pytest.approx(0.9)
+    assert result["inforce"].iloc[1] == pytest.approx(0.2)
+    assert result["inforce"].iloc[2] == pytest.approx(2.4)
+    assert result["inforce"].iloc[3] == pytest.approx(23396.5)
+
+
+def test_compute_quote_inforce_uses_the_nanosecond_key_when_present(con):
+    """With the nanosecond key, quotes inside one microsecond are ordered.
+
+    `timestamp` is microsecond-resolution, so two quotes 500ns apart share one
+    value and neither their order nor the interval between them is recoverable
+    from it. The durations here are only correct if `timestamp_ns` drives both.
+    """
+    base = pd.Timestamp("2020-01-02 09:30:00")
+    # Two quotes inside the same microsecond, then one a second later.
+    offsets_ns = [0, 500, 1_000_000_000]
+    data = pd.DataFrame(
+        {
+            "symbol": ["AAPL"] * 3,
+            "timestamp": [base, base, base + pd.Timedelta("1s")],
+            "timestamp_ns": [base.value + off for off in offsets_ns],
+        }
+    )
+    table = con.create_table("nanosecond", data)
+
+    result = (
+        compute_quote_inforce(table, end_timestamp=datetime.datetime(2020, 1, 2, 16, 0))
+        .execute()
+        .sort_values("timestamp_ns")
+    )
+
+    assert result["inforce"].iloc[0] == pytest.approx(500e-9)
+    assert result["inforce"].iloc[1] == pytest.approx(1.0 - 500e-9)
+    # 09:30:01 to 16:00:00 is 23,399 seconds.
+    assert result["inforce"].iloc[2] == pytest.approx(23399.0)
+
+
+def test_compute_quote_inforce_clamps_at_the_close(con):
+    """A quote at or past the close counts for nothing, never for less."""
+    data = pd.DataFrame(
+        {
+            "symbol": ["AAPL"],
+            "timestamp": pd.to_datetime(["2020-01-02 16:00:30"]),
+        }
+    )
+    table = con.create_table("after_close", data)
+
+    result = compute_quote_inforce(
+        table, end_timestamp=datetime.datetime(2020, 1, 2, 16, 0)
+    ).execute()
+
+    assert result["inforce"].iloc[0] == 0.0
+
+
 def test_compute_quote_inforce_multiple_symbols(con):
     """Test quote inforce with multiple symbols."""
     data = pd.DataFrame(

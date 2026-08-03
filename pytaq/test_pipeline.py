@@ -12,7 +12,7 @@ import pandas as pd
 import pytest
 
 from .cleaning.merge_quotes_nbbo import merge_quotes_nbbo
-from .cleaning.official_nbbo import clean_official_complete_nbbo
+from .cleaning.official_nbbo import OFF_NBBO_COLS_CLEAN, clean_official_complete_nbbo
 from .cleaning.trades import clean_trades
 from .conftest import DATE, seconds_at
 from .metrics.effective_spreads import compute_effective_spreads
@@ -238,14 +238,12 @@ def test_official_nbbo_cleaning_is_idempotent_in_shape(raw_official_nbbo):
     """Cleaning twice is not meaningful, but the output shape is stable."""
     once = clean_official_complete_nbbo(raw_official_nbbo).execute()
 
-    assert list(once.columns) == [
-        "timestamp",
-        "symbol",
-        "best_bid",
-        "best_bidsizeshares",
-        "best_ask",
-        "best_asksizeshares",
-    ]
+    assert list(once.columns) == OFF_NBBO_COLS_CLEAN
+    assert "timestamp_ns" in once.columns, (
+        "the nanosecond key must survive cleaning: the trade-to-quote match, the "
+        "T+horizon match and the time in force all fall back to microseconds "
+        "without it"
+    )
     assert len(once) == 3
 
 

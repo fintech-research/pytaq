@@ -3,12 +3,16 @@ from typing import TYPE_CHECKING, Union
 
 import ibis
 
+from ..cleaning.common import TIMESTAMP_NS_COL, epoch_nanoseconds
 from .conventions import DEFAULT_PERCENT_METHOD, PercentMethod, check_percent_method
 from .locks_crosses import filter_locks_crosses
 from .timestamps import filter_timestamp
 
 if TYPE_CHECKING:
     from ibis.expr.types import Table
+
+NANOSECONDS_PER_SECOND = 1_000_000_000
+MICROSECONDS_PER_SECOND = 1_000_000
 
 
 def compute_quote_inforce(
@@ -17,30 +21,65 @@ def compute_quote_inforce(
     groupby_col: str | list[str] = "symbol",
     timestamp_col: str = "timestamp",
     inforce_col: str = "inforce",
+    order_col: str | None = TIMESTAMP_NS_COL,
 ) -> "Table":
-    """Compute time between each quote.
+    """Compute how long each quote stands, in seconds.
+
+    A quote is in force until the next quote for the same symbol. The day's last
+    quote has no successor and stands until `end_timestamp`.
+
+    The result is a real number of seconds, which is what Holden and Jacobsen
+    weight by: their `inforce = abs(dif(InterpolatedTime))` differences a time
+    measured in fractional seconds. This used to be computed with
+    `delta(unit="second")`, which truncates both sides to the second before
+    subtracting, so it returned the number of one-second boundaries crossed
+    rather than a duration: a quote replaced 900ms later scored 0, and one
+    replaced 200ms later scored 1 if it happened to straddle a boundary. Since
+    DTAQ NBBO updates are overwhelmingly sub-second, that gave most quotes zero
+    weight and left the time-weighted averages riding on the minority that
+    straddled a boundary.
+
+    Durations come from the integer nanosecond key when the table carries one,
+    which is exact and needs no date arithmetic. Otherwise they come from a
+    microsecond difference on `timestamp_col`.
 
     Args:
         table (Table): Input table
-        end_timestamp (datetime): End timestamp for the day
+        end_timestamp (datetime): When the last quote of the day stops standing
         groupby_col (Union[str, List[str]]): Column(s) to group by
         timestamp_col (str): Name of timestamp column
         inforce_col (str): Name of inforce column to create
+        order_col (str | None): Column giving the true event order, defaulting
+            to the nanosecond key. Falls back to `timestamp_col` when absent
 
     Returns:
-        Table: Table with inforce column added
+        Table: Table with inforce column added, in seconds
     """
-    # Note: ibis.window takes group_by, not partition_by.
-    window = ibis.window(group_by=groupby_col, order_by=timestamp_col)
+    use_ns = order_col is not None and order_col in table.columns
 
-    # A quote is in force until the next quote for the same symbol. The last
-    # quote of the day has no successor, so it stays in force until
-    # end_timestamp.
-    next_timestamp = table[timestamp_col].lead().over(window)
-    seconds_to_next = next_timestamp.delta(table[timestamp_col], unit="second")
-    seconds_to_close = ibis.timestamp(end_timestamp).delta(
-        table[timestamp_col], unit="second"
+    # Note: ibis.window takes group_by, not partition_by.
+    window = ibis.window(
+        group_by=groupby_col, order_by=order_col if use_ns else timestamp_col
     )
+
+    if use_ns:
+        current = table[order_col]
+        to_next = current.lead().over(window) - current
+        to_close = ibis.literal(epoch_nanoseconds(end_timestamp), "int64") - current
+        divisor = NANOSECONDS_PER_SECOND
+    else:
+        current = table[timestamp_col]
+        to_next = current.lead().over(window).delta(current, unit="microsecond")
+        to_close = ibis.timestamp(end_timestamp).delta(current, unit="microsecond")
+        divisor = MICROSECONDS_PER_SECOND
+
+    # Cast before dividing: integer division truncates on postgres, which would
+    # reintroduce exactly the bug this function used to have.
+    seconds_to_next = to_next.cast("float64") / divisor
+
+    # H&J clamp the closing leg at zero, so a quote at or past the close counts
+    # for nothing rather than for a negative duration.
+    seconds_to_close = ibis.greatest(to_close.cast("float64") / divisor, 0.0)
 
     return table.mutate(
         **{

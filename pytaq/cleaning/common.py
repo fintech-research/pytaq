@@ -84,6 +84,26 @@ def _epoch_nanoseconds(table: "Table") -> "IntegerValue":
     return midnight * 1_000_000_000 + _time_of_day_nanoseconds(table)
 
 
+def epoch_nanoseconds(moment: datetime.datetime) -> int:
+    """Epoch nanoseconds for a naive datetime, comparable with ``timestamp_ns``.
+
+    :func:`merge_datetime` builds ``timestamp_ns`` from the date's epoch
+    seconds, which reads a naive timestamp as UTC. This does the same in Python,
+    so a literal produced here can be compared against the column without a
+    timezone assumption creeping in on one side only.
+
+    Args:
+        moment (datetime.datetime): A naive datetime
+
+    Returns:
+        int: Nanoseconds since the epoch
+    """
+    delta = moment - datetime.datetime(1970, 1, 1)
+    return (
+        delta.days * 86_400 + delta.seconds
+    ) * 1_000_000_000 + delta.microseconds * 1_000
+
+
 def _timestamp_from_time_column(table: "Table") -> "TimestampValue":
     """Combine a date with a SQL ``time`` column.
 
