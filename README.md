@@ -21,7 +21,7 @@ Python 3.13 or later.
 Three supported paths. Only opening the data differs; cleaning and metrics are identical in all three.
 
 1. **On the WRDS cloud**, against their postgres server
-2. **Locally, remote data**, querying the WRDS postgres server
+2. **Locally, remote data**, querying the WRDS postgres server. Suits small queries only; see below
 3. **Locally, local data**, against local TAQ files
 
 ```python
@@ -53,6 +53,10 @@ Nothing runs until `.execute()`. Ibis builds an expression and hands the whole t
 - **NBBO construction**, either from WRDS's official complete NBBO or rebuilt from the NBBO and quote files
 - **Metrics**: quoted and effective spreads, realized spreads and price impacts, time- and dollar-weighted averages, lock and cross indicators
 - **Trade signing**: Lee-Ready, EMO, CLNV, and BJZ for identifying retail trades
+
+## Performance
+
+Querying the WRDS server from your own machine runs the as-of joins and window functions remotely, over the network, on a shared machine. **It suits small queries: a few symbols, or part of a day.** For anything larger, materialise the raw tables locally first and run the pipeline against those, which is what the local path is for. A full symbol-day takes well under a second locally.
 
 ## Backends
 
