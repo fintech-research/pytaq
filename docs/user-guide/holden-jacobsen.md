@@ -45,7 +45,7 @@ These filters set the offending side to null rather than dropping the row, which
 
 ## Liquidity measures
 
-Dollar measures agree throughout. Percent measures follow H&J by default, dividing the dollar measure by the reference midpoint. The log-difference form remains available through `percent_method="log"` on each function; the two agree to first order and diverge as spreads widen.
+Dollar measures agree throughout, with one exception noted under price impact. Percent measures follow H&J by default, dividing the dollar measure by the reference midpoint. The log-difference form remains available through `percent_method="log"` on each function; the two agree to first order and diverge as spreads widen.
 
 | Measure | Holden and Jacobsen | PyTAQ | Status |
 |---|---|---|---|
@@ -55,10 +55,16 @@ Dollar measures agree throughout. Percent measures follow H&J by default, dividi
 | Percent effective spread | `2·abs(P - M) / M` | same by default | matches, `percent_method` |
 | Dollar realized spread | `2·D·(P - M₅)` | same | matches |
 | Percent realized spread | `2·D·(P - M₅) / M₅` | same by default | matches, `percent_method` |
-| Dollar price impact | `ES$ - RS$` | `2·D·(M₅ - M)` | matches, algebraically identical |
-| Percent price impact | `(ES$ - RS$) / M₅` | same by default | matches, `percent_method` |
+| Dollar price impact | `ES$ - RS$`, with `ES$` **unsigned** | `2·D·(M₅ - M)` | differs when the sign disagrees with the trade's side of the midpoint, see below |
+| Percent price impact | `(ES$ - RS$) / M₅` | same by default | same caveat, `percent_method` |
 | Realized spread horizon | 5 minutes | `delay` parameter, default 5 minutes | matches |
 | Denominator for RS and PI | the **future** midpoint `M₅` | `M₅` in the dollar form | matches |
+
+### On price impact
+
+H&J compute price impact as `wDollarPriceImpact = wEffectiveSpread_Dollar - wDollarRealizedSpread`, where the effective spread is `2·|P - M|`, unsigned, and the realized spread is `2·D·(P - M₅)`, signed. PyTAQ computes `2·D·(M₅ - M)` directly.
+
+The two are identical whenever `D` agrees with the side of the midpoint the trade fell on, since then `|P - M| = D·(P - M)` and the terms telescope. Lee-Ready always agrees, because it assigns `D` from that comparison. EMO and CLNV need not: both fall back to the tick test for trades away from the quotes, and the tick test can return a sell for a trade above the midpoint. On those trades H&J's expression mixes an unsigned magnitude with a signed one, and the two definitions diverge; PyTAQ's is the textbook decomposition. Only the EMO and CLNV columns are affected, and only on trades the tick test decided.
 
 ## Exclusions when computing measures
 
@@ -72,14 +78,16 @@ Dollar measures agree throughout. Percent measures follow H&J by default, dividi
 
 | Step | Holden and Jacobsen | PyTAQ | Status |
 |---|---|---|---|
+| Time in force | `inforce = abs(dif(InterpolatedTime))`, a fractional-second duration | `compute_quote_inforce`, seconds as a real number | matches |
 | Quoted spread, time-weighted | `sum(x·inforce) / sum(inforce)` | `compute_weighted_averages` | matches, denominator restricted to observed rows |
-| Last quote in force until 16:00 | `inforce = max(end - t, 0)` | `end_timestamp` parameter | matches |
+| Last quote in force until 16:00 | `inforce = max(end - t, 0)` | `end_timestamp` parameter, clamped at zero | matches |
 | Effective spread, simple average | `mean(x)` | `compute_averages` | matches |
 | Share-weighted | `sum(x·size) / sum(size)` | same | matches, denominator restricted to observed rows |
 | Dollar-weighted | `sum(x·dollar) / sum(dollar)` | same | matches, denominator restricted to observed rows |
-| Quoted-spread statistics window | quotes before 09:30 deleted **after** the NBBO is built | uses one window throughout | differs, minor |
+| Quoted-spread statistics window | quotes before 09:30 deleted **after** the NBBO is built | `quoted_spread_start_time`, defaulting to the start of the trade window | matches |
+| Locked and crossed quotes, quote statistics | deleted after timing, before weighting | same order in `process_day` | matches |
 
-On the weighted averages: H&J sum the full weight column, which is correct for their data because no measure is missing at the point of aggregation. PyTAQ restricts both sums to rows where the measure and the weight are observed. On complete data the two agree exactly; on data with nulls PyTAQ is right and a literal transcription of the SAS would be biased toward zero. Worth knowing when comparing output. See #32.
+On the weighted averages: H&J sum the full weight column. Their aggregation reads `sum(dollar) as sumdollar` over every retained trade and divides by it, so a trade their signing algorithm left unclassified still enters the denominator while contributing nothing to the numerator. PyTAQ restricts both sums to rows where the measure and the weight are observed. On complete data the two agree exactly; where the measure is missing, a literal transcription of the SAS is biased toward zero in proportion to the weight the missing rows carry. This is the one place PyTAQ deliberately does not follow the published code. See #32.
 
 ## Not implemented
 

@@ -81,3 +81,19 @@ trading day 2020-01-02, using AAPL (Nasdaq-listed) and A (NYSE-listed).
 
 - [ ] Whether the one-millisecond trade-to-quote lag H&J specify should remain
       the default now that TAQ carries nanoseconds. See #40.
+
+- [ ] **The rewritten `compute_quote_inforce` on postgres.** It now derives a
+      duration from the integer `timestamp_ns` key, which needs no date
+      arithmetic and should be identical on both backends. The fallback branch,
+      taken only when a caller passes a table without `timestamp_ns`, uses
+      `delta(unit="microsecond")`, and no test has ever run a metrics function
+      against the WRDS server: the integration tests cover the cleaning
+      functions only. Run the quoted-spread path against `taqmsec` once and
+      confirm the numbers match a DuckDB run on the same materialised data.
+
+- [ ] **How much the three 0.4.0 corrections move the numbers on real data.**
+      All three are verified on fixtures, and the direction is understood, but
+      the size on a real symbol-day is not measured. Time-weighted quoted
+      spreads change for every symbol-day; effective and realized spreads change
+      only on trades near a quote update. Worth one before-and-after run on AAPL
+      for 2020-01-02 before anything is published from this.

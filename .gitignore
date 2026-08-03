@@ -135,3 +135,7 @@ dmypy.json
 
 
 poetry.lock
+
+# SAS scripts for the Holden and Jacobsen comparison, run on the WRDS cloud.
+# Working material, deliberately untracked.
+sas_hj/

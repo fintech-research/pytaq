@@ -4,6 +4,24 @@ All notable changes to PyTAQ are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-08-03
+
+Four corrections found by implementing the same pipeline in SAS and reading Holden and Jacobsen's own September 2013 code line by line. Three change published numbers.
+
+### Breaking
+
+- **Time in force is now a duration in seconds, not a count of second boundaries.** `compute_quote_inforce` used `delta(unit="second")`, which truncates both sides to the second before subtracting, so a quote replaced 900ms later scored 0 and one replaced 200ms later scored 1 if it straddled a boundary. DTAQ quote lives are overwhelmingly sub-second, so most quotes carried zero weight and every time-weighted quoted spread was driven by the minority that straddled a boundary. H&J difference a fractional-second time (`inforce = abs(dif(InterpolatedTime))`), which is what this now returns. **Time-weighted quoted spreads change for every symbol-day**
+- **`process_day` now excludes locked and crossed quotes from quoted spreads, and drops quotes before the trade window before time-weighting them.** It previously did neither: the lock and cross filter lived in `compute_weighted_spreads`, which `process_day` never calls, and one window was used throughout. H&J do both, in that order. `quoted_spread_start_time=None` and `exclude_locked_crossed=False` restore the old behaviour
+- **Cleaned tables keep `timestamp_ns`.** `TRADES_COLS_CLEAN` and `OFF_NBBO_COLS_CLEAN` dropped it, so inside `process_day` the one-millisecond lag, the T+horizon match and the tick-test ordering all silently fell back to the microsecond `timestamp`, contradicting the documented nanosecond precision. Matches can now shift by up to a microsecond, so effective and realized spreads change on trades near a quote update
+
+### Fixed
+
+- **Weighted averages guard a zero denominator.** DuckDB returns null for a float division by zero while postgres raises `division_by_zero`, so an all-null measure or an all-zero weight column failed on one backend and not the other
+
+### Changed
+
+- The conformance table records two things that reading the published code corrected: H&J's price impact is `ES$ - RS$` with an **unsigned** effective spread, which diverges from PyTAQ's `2·D·(M₅ - M)` for EMO and CLNV on trades the tick test decided, and their weighted-average denominators sum the full weight column, which PyTAQ deliberately does not follow
+
 ## [0.3.0] - 2026-08-03
 
 Completion of the pandas-to-Ibis refactor, validation against real WRDS data, and everything needed to publish.
