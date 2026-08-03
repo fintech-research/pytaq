@@ -8,6 +8,18 @@ TAQ reaches PyTAQ in two shapes, and `time_m` differs between them:
 Both are real and both are in use, so the helpers here dispatch on the column
 type rather than assuming one. Getting this wrong is not subtle: the wrong
 branch raises rather than producing quiet nonsense.
+
+Two time columns come out of :func:`merge_datetime`:
+
+``timestamp``
+    A real timestamp, microsecond resolution. What you want for display, for
+    grouping by time of day, or for anything that expects a datetime.
+
+``timestamp_ns``
+    Epoch nanoseconds as ``int64``. This is the ordering key. TAQ resolves
+    events to the nanosecond, and a postgres ``timestamp`` cannot hold that, so
+    the extra precision has to live in an integer or be thrown away. Ordering
+    and trade-to-quote matching use it; everything else uses ``timestamp``.
 """
 
 import datetime
@@ -20,6 +32,56 @@ if TYPE_CHECKING:
 def _seconds_since_midnight(t: datetime.time) -> float:
     """Convert a Python time to seconds since midnight."""
     return t.hour * 3600 + t.minute * 60 + t.second + t.microsecond / 1_000_000
+
+
+#: Column holding the sub-microsecond remainder, when the source provides one.
+NANO_COL = "time_m_nano"
+
+#: Name of the integer nanosecond ordering key added by :func:`merge_datetime`.
+TIMESTAMP_NS_COL = "timestamp_ns"
+
+
+def _nanosecond_remainder(table: "Table") -> "IntegerValue":
+    """The 0-999 nanosecond remainder, or zero if the source has none.
+
+    WRDS splits the timestamp: `time_m` carries microseconds and
+    `time_m_nano` the remainder inside that microsecond. Local exports
+    generally carry only `time_m`, so the remainder is zero and the two
+    sources stay comparable.
+    """
+    import ibis
+
+    if NANO_COL in table.columns:
+        return table[NANO_COL].cast("int64").fill_null(0)
+    return ibis.literal(0, type="int64")
+
+
+def _time_of_day_nanoseconds(table: "Table") -> "IntegerValue":
+    """Nanoseconds since midnight, at full precision."""
+    time_m = table.time_m
+    dtype = time_m.type()
+
+    if dtype.is_time():
+        seconds = (
+            time_m.hour().cast("int64") * 3600
+            + time_m.minute().cast("int64") * 60
+            + time_m.second().cast("int64")
+        )
+        microseconds = time_m.microsecond().cast("int64")
+    else:
+        seconds = time_m.floor().cast("int64")
+        microseconds = ((time_m - time_m.floor()) * 1_000_000).round().cast("int64")
+
+    return seconds * 1_000_000_000 + microseconds * 1_000 + _nanosecond_remainder(table)
+
+
+def _epoch_nanoseconds(table: "Table") -> "IntegerValue":
+    """Epoch nanoseconds, exact.
+
+    int64 reaches year 2262, so there is no overflow concern for TAQ.
+    """
+    midnight = table.date.cast("timestamp").epoch_seconds().cast("int64")
+    return midnight * 1_000_000_000 + _time_of_day_nanoseconds(table)
 
 
 def _timestamp_from_time_column(table: "Table") -> "TimestampValue":
@@ -60,14 +122,17 @@ def merge_datetime(table: "Table") -> "Table":
     server returns, or a numeric count of seconds since midnight, as local
     exports commonly carry.
 
-    Sub-microsecond precision is dropped. WRDS exposes it separately as
-    ``time_m_nano`` and PyTAQ does not currently use it.
+    Adds two columns. ``timestamp`` is a real timestamp at microsecond
+    resolution. ``timestamp_ns`` is epoch nanoseconds as an integer, carrying
+    the full precision TAQ provides via ``time_m_nano``, because a postgres
+    timestamp cannot hold nanoseconds. Sources without a nanosecond column get
+    a zero remainder, so the two agree.
 
     Args:
         table (Table): Table with ``date`` and ``time_m`` columns
 
     Returns:
-        Table: The input table with a ``timestamp`` column added
+        Table: The input table with ``timestamp`` and ``timestamp_ns`` added
 
     Raises:
         TypeError: If ``time_m`` is neither a time nor a numeric column
@@ -84,7 +149,9 @@ def merge_datetime(table: "Table") -> "Table":
             f"midnight, got {dtype}."
         )
 
-    return table.mutate(timestamp=timestamp)
+    return table.mutate(
+        timestamp=timestamp, **{TIMESTAMP_NS_COL: _epoch_nanoseconds(table)}
+    )
 
 
 def merge_symbol(table: "Table") -> "Table":

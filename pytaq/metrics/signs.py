@@ -20,6 +20,7 @@ def sign_tick(
     timestamp_col: str = "timestamp",
     price_col: str = "price",
     tick_col: str = "tick_dir",
+    order_col: str | None = "timestamp_ns",
 ) -> "Table":
     """Compute trade direction using the tick test.
 
@@ -38,6 +39,10 @@ def sign_tick(
         timestamp_col (str): Timestamp column name
         price_col (str): Price column name
         tick_col (str): Name of the direction column to add
+        order_col (str | None): Column giving the true event order. Defaults to
+            the nanosecond key, since `timestamp` is only microsecond-resolution
+            and consecutive trades routinely share one. Falls back to
+            `timestamp_col` when absent
 
     Returns:
         Table: Input table with the tick direction column added
@@ -53,7 +58,12 @@ def sign_tick(
     # own ordering, so the table itself must not be re-sorted first: doing that
     # builds the expression against a different relation than the caller passes
     # to mutate(), which ibis rejects.
-    window = ibis.window(group_by=group, order_by=timestamp_col)
+    order_by = (
+        order_col
+        if order_col is not None and order_col in table.columns
+        else timestamp_col
+    )
+    window = ibis.window(group_by=group, order_by=order_by)
 
     # Direction of the price move against the previous trade. A zero return
     # carries no information, so it becomes null and is filled in below.
@@ -74,7 +84,7 @@ def sign_tick(
     # +1 for the rest of the group as soon as one uptick appears.
     run_window = ibis.window(
         group_by=group,
-        order_by=timestamp_col,
+        order_by=order_by,
         preceding=None,  # unbounded preceding
         following=0,
     )

@@ -223,3 +223,42 @@ def test_lag_does_not_drop_trades(same_instant):
     for lag in [datetime.timedelta(0), datetime.timedelta(milliseconds=1)]:
         result = merge_trades_official_nbbo(trades, quotes, lag=lag).execute()
         assert len(result) == 1
+
+
+def test_lag_is_applied_at_nanosecond_precision(duckdb_con):
+    """Two quotes inside one microsecond are distinguishable (#52).
+
+    Matching on `timestamp` alone treats everything within a microsecond as
+    simultaneous, which is exactly the resolution at which the ordering of a
+    trade and a quote is decided.
+    """
+    quotes = pd.DataFrame(
+        {
+            "symbol": pd.Series(["A", "A"], dtype="string"),
+            "date": [datetime.date(2020, 1, 2)] * 2,
+            "time_m": [datetime.time(9, 30, 0, 100)] * 2,
+            "time_m_nano": [100, 900],
+            "best_bid": [99.0, 98.0],
+            "best_ask": [101.0, 102.0],
+        }
+    )
+    trades = pd.DataFrame(
+        {
+            "symbol": pd.Series(["A"], dtype="string"),
+            "date": [datetime.date(2020, 1, 2)],
+            "time_m": [datetime.time(9, 30, 0, 100)],
+            "time_m_nano": [500],
+            "price": [100.0],
+        }
+    )
+    from .common import merge_datetime
+
+    q = merge_datetime(duckdb_con.create_table("ns_quotes", quotes))
+    t = merge_datetime(duckdb_con.create_table("ns_trades", trades))
+
+    # Zero lag, so the only thing separating them is the nanosecond remainder.
+    result = merge_trades_official_nbbo(t, q, lag=datetime.timedelta(0)).execute()
+
+    # The trade is at +500ns, so it sees the +100ns quote, not the +900ns one.
+    assert result["best_bid"].iloc[0] == 99.0
+    assert result["best_ask"].iloc[0] == 101.0
