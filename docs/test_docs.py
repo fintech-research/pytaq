@@ -110,8 +110,8 @@ def test_the_quickstart_workflow_runs(data_dir):
     signed = sign_trades(matched).execute()
 
     assert len(signed) == 4
-    for suffix in ["Tick", "LR", "EMO", "CLNV", "BJZ"]:
-        assert f"BuySell{suffix}" in signed.columns
+    for suffix in ["tick", "lr", "emo", "clnv", "bjz"]:
+        assert f"buysell_{suffix}" in signed.columns
 
 
 def test_documented_hj_defaults_match_the_code():

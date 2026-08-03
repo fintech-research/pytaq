@@ -4,9 +4,18 @@ All notable changes to PyTAQ are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.0] - 2026-08-03
 
-Completion of the pandas-to-Ibis refactor and everything needed to publish.
+Completion of the pandas-to-Ibis refactor, validation against real WRDS data, and everything needed to publish.
+
+### Breaking
+
+- **Output columns are now snake_case throughout.** `DollarEffectiveSpread` becomes `effective_spread_dollar`, `BuySellLR` becomes `buysell_lr`, `DollarRealizedSpread_LR5min` becomes `realized_spread_dollar_lr_5min`, and the `_SW` / `_DW` weighting suffixes become `_share_weighted` / `_dollar_weighted`. Three naming conventions coexisted; settling on one before publishing is cheaper than after
+- **Percent measures now follow Holden and Jacobsen by default**, dividing the dollar measure by the reference midpoint rather than taking a log difference. `percent_method="log"` restores the previous behaviour
+- **Trades are matched to the NBBO one millisecond earlier**, as H&J specify, rather than contemporaneously. `lag=timedelta(0)` restores the previous behaviour
+- **Quote filters neutralise a side rather than deleting the row.** The `delete_*` arguments are renamed `exclude_*`, and `filter_withdrawned_quotes` becomes `neutralize_withdrawn_quotes`
+- **`sign_tick` returns a table** rather than a column
+- **`requires-python` is now `>=3.13`**
 
 ### Added
 

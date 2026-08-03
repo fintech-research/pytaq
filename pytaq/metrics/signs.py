@@ -10,8 +10,8 @@ if TYPE_CHECKING:
 
 DEFAULT_CLNV_THRESHOLD = 0.3
 
-BASE_SIGNS = ["LR", "EMO", "CLNV"]
-RETAIL_SIGNS = ["BJZ"] + [x + "notBJZ" for x in BASE_SIGNS]
+BASE_SIGNS = ["lr", "emo", "clnv"]
+RETAIL_SIGNS = ["bjz"] + [f"{x}_not_bjz" for x in BASE_SIGNS]
 
 
 def sign_tick(
@@ -255,7 +255,7 @@ def sign_trades(
     groupby_col: str | list[str] = "symbol",
     timestamp_col: str = "timestamp",
     price_col: str = "price",
-    sign_col_prefix: str = "BuySell",
+    sign_col_prefix: str = "buysell_",
     clnv_threshold: float = DEFAULT_CLNV_THRESHOLD,
 ) -> "Table":
     """Compute trade signs using various algorithms.
@@ -276,7 +276,7 @@ def sign_trades(
 
     # Compute tick direction. This materialises an intermediate column, so it
     # has to happen before any expression that reads from result_table.
-    tick_col = f"{sign_col_prefix}Tick"
+    tick_col = f"{sign_col_prefix}tick"
     result_table = sign_tick(
         table=result_table,
         groupby_col=groupby_col,
@@ -294,20 +294,20 @@ def sign_trades(
     # Add sign columns
     result_table = result_table.mutate(
         **{
-            f"{sign_col_prefix}LR": sign_lr(
+            f"{sign_col_prefix}lr": sign_lr(
                 price=result_table[price_col],
                 midpoint=result_table["midpoint"],
                 tick_dir=tick_dir,
                 lock_cross=lock_cross,
             ),
-            f"{sign_col_prefix}EMO": sign_emo(
+            f"{sign_col_prefix}emo": sign_emo(
                 price=result_table[price_col],
                 best_bid=result_table["best_bid"],
                 best_ask=result_table["best_ask"],
                 tick_dir=tick_dir,
                 lock_cross=lock_cross,
             ),
-            f"{sign_col_prefix}CLNV": sign_clnv(
+            f"{sign_col_prefix}clnv": sign_clnv(
                 price=result_table[price_col],
                 best_bid=result_table["best_bid"],
                 best_ask=result_table["best_ask"],
@@ -315,19 +315,19 @@ def sign_trades(
                 lock_cross=lock_cross,
                 threshold=clnv_threshold,
             ),
-            f"{sign_col_prefix}BJZ": sign_bjz(
+            f"{sign_col_prefix}bjz": sign_bjz(
                 price=result_table[price_col], ex=result_table["ex"]
             ),
         }
     )
 
     # Add notBJZ columns
-    bjz_null = result_table[f"{sign_col_prefix}BJZ"].isnull()
+    bjz_null = result_table[f"{sign_col_prefix}bjz"].isnull()
 
-    for x in ["LR", "EMO", "CLNV"]:
+    for x in BASE_SIGNS:
         result_table = result_table.mutate(
             **{
-                f"{sign_col_prefix}{x}notBJZ": bjz_null.ifelse(
+                f"{sign_col_prefix}{x}_not_bjz": bjz_null.ifelse(
                     result_table[f"{sign_col_prefix}{x}"], ibis.null()
                 )
             }

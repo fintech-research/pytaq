@@ -36,8 +36,8 @@ def compute_effective_spreads(
         best_ask_col (str): Name of the prevailing ask column
 
     Returns:
-        Table: Input table with `DollarEffectiveSpread` and
-        `PercentEffectiveSpread` added
+        Table: Input table with `effective_spread_dollar` and
+        `effective_spread_percent` added
     """
     check_percent_method(percent_method)
 
@@ -52,6 +52,6 @@ def compute_effective_spreads(
         percent = (t.price.log() - t.midpoint.log()).abs() * 2
 
     return t.mutate(
-        DollarEffectiveSpread=dollar,
-        PercentEffectiveSpread=percent,
+        effective_spread_dollar=dollar,
+        effective_spread_percent=percent,
     )

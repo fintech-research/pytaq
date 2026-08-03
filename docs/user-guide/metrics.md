@@ -10,16 +10,16 @@ from pytaq import sign_trades
 signed = sign_trades(matched)
 ```
 
-Adds one column per algorithm, prefixed `BuySell` by default:
+Adds one column per algorithm, prefixed `buysell_` by default:
 
 | Column | Algorithm |
 |---|---|
-| `BuySellTick` | Tick test |
-| `BuySellLR` | Lee-Ready |
-| `BuySellEMO` | Ellis, Michaely and O'Hara |
-| `BuySellCLNV` | Chakrabarty, Li, Nguyen and Van Ness |
-| `BuySellBJZ` | Boehmer, Jones and Zhang, retail trades only |
-| `BuySellLRnotBJZ` and friends | The base algorithm, restricted to trades BJZ did not classify |
+| `buysell_tick` | Tick test |
+| `buysell_lr` | Lee-Ready |
+| `buysell_emo` | Ellis, Michaely and O'Hara |
+| `buysell_clnv` | Chakrabarty, Li, Nguyen and Van Ness |
+| `buysell_bjz` | Boehmer, Jones and Zhang, retail trades only |
+| `buysell_lr_not_bjz` and friends | The base algorithm, restricted to trades BJZ did not classify |
 
 `+1` is a buy, `-1` a sell, null unclassified.
 
@@ -29,7 +29,7 @@ signed = sign_trades(
     groupby_col="symbol",
     timestamp_col="timestamp",
     price_col="price",
-    sign_col_prefix="BuySell",
+    sign_col_prefix="buysell_",
     clnv_threshold=0.3,
 )
 ```
@@ -69,7 +69,7 @@ compute_rs_and_pi(signed, nbbo, percent_method="log")
 
 The two agree to first order and diverge as spreads widen, so the choice matters least where spreads are tightest. Dollar measures are unaffected. Note that realized spread and price impact are divided by the **future** midpoint, as H&J specify, not the contemporaneous one.
 
-`compute_effective_spreads` adds `DollarEffectiveSpread` and `PercentEffectiveSpread`, twice the absolute distance between the trade price and the prevailing midpoint.
+`compute_effective_spreads` adds `effective_spread_dollar` and `effective_spread_percent`, twice the absolute distance between the trade price and the prevailing midpoint.
 
 Trades struck while the market was locked or crossed are excluded, as Holden and Jacobsen require, since the midpoint is not meaningful then. The indicators are derived from the prevailing bid and ask, so nothing needs preparing:
 
@@ -129,7 +129,7 @@ from pytaq.metrics import compute_averages
 
 daily = compute_averages(
     signed,
-    cols=["DollarEffectiveSpread", "PercentEffectiveSpread"],
+    cols=["effective_spread_dollar", "effective_spread_percent"],
     group="symbol",
     weights=[(None, ""), ("size", "_sw"), ("dollar", "_dw")],
 )

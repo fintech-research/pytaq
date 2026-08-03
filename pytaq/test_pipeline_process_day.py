@@ -39,14 +39,14 @@ def test_daily_has_one_row_per_symbol(day):
 def test_daily_carries_the_standard_measures(day):
     result = day.execute()
 
-    for measure in ["DollarEffectiveSpread", "PercentEffectiveSpread"]:
-        for weight in ["", "_SW", "_DW"]:
+    for measure in ["effective_spread_dollar", "effective_spread_percent"]:
+        for weight in ["", "_share_weighted", "_dollar_weighted"]:
             assert f"{measure}{weight}" in result.columns
     for measure in ["quoted_spread_dollar", "quoted_spread_percent"]:
         assert measure in result.columns
-    for sign in ["LR", "EMO", "CLNV"]:
-        assert f"DollarRealizedSpread_{sign}5min" in result.columns
-        assert f"DollarPriceImpact_{sign}5min" in result.columns
+    for sign in ["lr", "emo", "clnv"]:
+        assert f"realized_spread_dollar_{sign}_5min" in result.columns
+        assert f"price_impact_dollar_{sign}_5min" in result.columns
 
 
 def test_effective_spread_decomposes_into_realized_and_impact(day):
@@ -58,9 +58,9 @@ def test_effective_spread_decomposes_into_realized_and_impact(day):
     """
     r = day.execute().iloc[0]
 
-    es = r["DollarEffectiveSpread"]
-    rs = r["DollarRealizedSpread_LR5min"]
-    pi = r["DollarPriceImpact_LR5min"]
+    es = r["effective_spread_dollar"]
+    rs = r["realized_spread_dollar_lr_5min"]
+    pi = r["price_impact_dollar_lr_5min"]
 
     assert rs + pi == pytest.approx(es, abs=0.05)
 
@@ -82,7 +82,7 @@ def test_horizon_suffix_names_the_columns(raw_trades, raw_official_nbbo):
         horizon_suffix="1min",
     )
 
-    assert "DollarRealizedSpread_LR1min" in day.execute().columns
+    assert "realized_spread_dollar_lr_1min" in day.execute().columns
 
 
 def test_percent_method_is_threaded_through(raw_trades, raw_official_nbbo):
@@ -92,8 +92,8 @@ def test_percent_method_is_threaded_through(raw_trades, raw_official_nbbo):
     ).execute()
 
     # Dollar measures are the same either way; percent ones need not be.
-    assert ratio["DollarEffectiveSpread"].iloc[0] == pytest.approx(
-        log["DollarEffectiveSpread"].iloc[0]
+    assert ratio["effective_spread_dollar"].iloc[0] == pytest.approx(
+        log["effective_spread_dollar"].iloc[0]
     )
 
 
@@ -117,8 +117,8 @@ def test_retail_variants_are_opt_in(raw_trades, raw_official_nbbo):
         raw_trades, raw_official_nbbo, date=DATE, track_retail=True
     ).execute()
 
-    assert "DollarRealizedSpread_BJZ5min" not in plain.columns
-    assert "DollarRealizedSpread_BJZ5min" in retail.columns
+    assert "realized_spread_dollar_bjz_5min" not in plain.columns
+    assert "realized_spread_dollar_bjz_5min" in retail.columns
 
 
 # ---------------------------------------------------------------------------

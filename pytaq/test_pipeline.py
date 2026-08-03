@@ -42,14 +42,14 @@ def test_end_to_end_trades_to_effective_spreads(signed_trades):
     result = compute_effective_spreads(signed_trades).execute()
 
     assert len(result) == 4
-    for column in ["DollarEffectiveSpread", "PercentEffectiveSpread"]:
+    for column in ["effective_spread_dollar", "effective_spread_percent"]:
         assert column in result.columns
 
     # Effective spread is twice the absolute distance to the midpoint, so it is
     # non-negative wherever the trade matched a quote.
     matched = result[result["midpoint"].notna()]
     assert len(matched) > 0
-    assert (matched["DollarEffectiveSpread"] >= 0).all()
+    assert (matched["effective_spread_dollar"] >= 0).all()
 
 
 def test_end_to_end_quoted_spreads_and_daily_average(cleaned_nbbo):
@@ -269,21 +269,21 @@ def test_rs_and_pi_adds_a_column_set_per_sign(signed_trades):
     # this exercises the measure arithmetic on its own.
     prepared = signed_trades.mutate(midpoint_next=signed_trades.midpoint * 1.01)
 
-    result = rs_and_pi(prepared, signs=["LR", "EMO"], suffix="5min").execute()
+    result = rs_and_pi(prepared, signs=["lr", "emo"], suffix="5min").execute()
 
-    for sign in ["LR", "EMO"]:
+    for sign in ["lr", "emo"]:
         for prefix in [
-            "DollarRealizedSpread_",
-            "PercentRealizedSpread_",
-            "DollarPriceImpact_",
-            "PercentPriceImpact_",
+            "realized_spread_dollar_",
+            "realized_spread_percent_",
+            "price_impact_dollar_",
+            "price_impact_percent_",
         ]:
-            assert f"{prefix}{sign}5min" in result.columns
+            assert f"{prefix}{sign}_5min" in result.columns
 
     # A buy whose midpoint rose has a positive price impact by construction.
-    buys = result[result["BuySellLR"] == 1]
+    buys = result[result["buysell_lr"] == 1]
     if len(buys):
-        assert (buys["DollarPriceImpact_LR5min"] > 0).all()
+        assert (buys["price_impact_dollar_lr_5min"] > 0).all()
 
 
 def test_compute_rs_and_pi_runs_end_to_end(signed_trades, cleaned_nbbo):
@@ -302,12 +302,12 @@ def test_compute_rs_and_pi_runs_end_to_end(signed_trades, cleaned_nbbo):
     ).execute()
 
     for prefix in [
-        "DollarRealizedSpread_",
-        "PercentRealizedSpread_",
-        "DollarPriceImpact_",
-        "PercentPriceImpact_",
+        "realized_spread_dollar_",
+        "realized_spread_percent_",
+        "price_impact_dollar_",
+        "price_impact_percent_",
     ]:
-        assert f"{prefix}LR1min" in result.columns
+        assert f"{prefix}lr_1min" in result.columns
 
 
 def test_merge_future_nbbo_attaches_a_later_midpoint(signed_trades, cleaned_nbbo):
@@ -355,6 +355,6 @@ def test_effective_spreads_need_no_hand_built_indicators(signed_trades):
 
     result = compute_effective_spreads(signed_trades).execute()
 
-    assert "DollarEffectiveSpread" in result.columns
-    assert "PercentEffectiveSpread" in result.columns
-    assert (result["DollarEffectiveSpread"].dropna() >= 0).all()
+    assert "effective_spread_dollar" in result.columns
+    assert "effective_spread_percent" in result.columns
+    assert (result["effective_spread_dollar"].dropna() >= 0).all()

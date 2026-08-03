@@ -110,14 +110,14 @@ def rs_and_pi(
     table: "Table",
     signs: Iterable[str],
     suffix: str = "",
-    sign_col_prefix: str = "BuySell",
+    sign_col_prefix: str = "buysell_",
     price_col: str = "price",
     midpoint_col: str = "midpoint",
     midpoint_next_col: str = "midpoint_next",
-    dollar_realized_spread_prefix: str = "DollarRealizedSpread_",
-    percent_realized_spread_prefix: str = "PercentRealizedSpread_",
-    dollar_price_impact_prefix: str = "DollarPriceImpact_",
-    percent_price_impact_prefix: str = "PercentPriceImpact_",
+    dollar_realized_spread_prefix: str = "realized_spread_dollar_",
+    percent_realized_spread_prefix: str = "realized_spread_percent_",
+    dollar_price_impact_prefix: str = "price_impact_dollar_",
+    percent_price_impact_prefix: str = "price_impact_percent_",
     percent_method: PercentMethod = DEFAULT_PERCENT_METHOD,
 ) -> "Table":
     """Compute realized spreads and price impacts.
@@ -143,29 +143,32 @@ def rs_and_pi(
     midpoint_next = table[midpoint_next_col]
 
     result_table = table
+    # Keep the horizon separated from the sign, so columns read
+    # realized_spread_dollar_lr_5min rather than ..._lr5min.
+    horizon = f"_{suffix}" if suffix else ""
 
     for sign_col_suffix in signs:
         sign = table[f"{sign_col_prefix}{sign_col_suffix}"]
 
         result_table = result_table.mutate(
             **{
-                f"{dollar_realized_spread_prefix}{sign_col_suffix}{suffix}": dollar_realized_spread(
+                f"{dollar_realized_spread_prefix}{sign_col_suffix}{horizon}": dollar_realized_spread(
                     sign=sign,
                     price=price,
                     midpoint_next=midpoint_next,
                 ),
-                f"{percent_realized_spread_prefix}{sign_col_suffix}{suffix}": percent_realized_spread(
+                f"{percent_realized_spread_prefix}{sign_col_suffix}{horizon}": percent_realized_spread(
                     sign=sign,
                     price=price,
                     midpoint_next=midpoint_next,
                     percent_method=percent_method,
                 ),
-                f"{dollar_price_impact_prefix}{sign_col_suffix}{suffix}": dollar_price_impact(
+                f"{dollar_price_impact_prefix}{sign_col_suffix}{horizon}": dollar_price_impact(
                     sign=sign,
                     midpoint=midpoint,
                     midpoint_next=midpoint_next,
                 ),
-                f"{percent_price_impact_prefix}{sign_col_suffix}{suffix}": percent_price_impact(
+                f"{percent_price_impact_prefix}{sign_col_suffix}{horizon}": percent_price_impact(
                     sign=sign,
                     midpoint=midpoint,
                     midpoint_next=midpoint_next,

@@ -306,14 +306,14 @@ def test_sign_trades_end_to_end(con):
 
     result = sign_trades(table).execute().sort_values("timestamp")
 
-    for suffix in ["Tick", "LR", "EMO", "CLNV", "BJZ"]:
-        assert f"BuySell{suffix}" in result.columns
-    for suffix in ["LR", "EMO", "CLNV"]:
-        assert f"BuySell{suffix}notBJZ" in result.columns
+    for suffix in ["tick", "lr", "emo", "clnv", "bjz"]:
+        assert f"buysell_{suffix}" in result.columns
+    for suffix in ["lr", "emo", "clnv"]:
+        assert f"buysell_{suffix}_not_bjz" in result.columns
 
     # Midpoint is 10.5. The first trade is below it, so Lee-Ready calls it a
     # sell even though the tick test has nothing to go on yet.
-    assert pd.isna(result["BuySellTick"].iloc[0])
-    assert result["BuySellLR"].iloc[0] == -1
+    assert pd.isna(result["buysell_tick"].iloc[0])
+    assert result["buysell_lr"].iloc[0] == -1
     # A trade exactly at the midpoint falls back to the tick direction.
-    assert result["BuySellLR"].iloc[2] == result["BuySellTick"].iloc[2]
+    assert result["buysell_lr"].iloc[2] == result["buysell_tick"].iloc[2]
