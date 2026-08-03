@@ -26,7 +26,7 @@ import datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ibis.expr.types import IntegerValue, Table, TimestampValue
+    from ibis.expr.types import IntegerValue, Table, TimestampValue, Value
 
 
 def _seconds_since_midnight(t: datetime.time) -> float:
@@ -41,7 +41,7 @@ NANO_COL = "time_m_nano"
 TIMESTAMP_NS_COL = "timestamp_ns"
 
 
-def _nanosecond_remainder(table: "Table") -> "IntegerValue":
+def _nanosecond_remainder(table: "Table") -> "Value":
     """The 0-999 nanosecond remainder, or zero if the source has none.
 
     WRDS splits the timestamp: `time_m` carries microseconds and
