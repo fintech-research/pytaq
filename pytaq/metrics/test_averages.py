@@ -126,6 +126,30 @@ def test_weighted_average_of_an_entirely_missing_measure_is_null(con):
     assert pd.isna(result["spread_share_weighted"].iloc[0])
 
 
+def test_weighted_average_with_zero_total_weight_is_null(con):
+    """Observed but zero weights leave nothing to average.
+
+    Distinct from an all-missing measure: here the weights are present, so the
+    denominator is a real zero rather than a null. DuckDB returns null for a
+    float division by zero and postgres raises division_by_zero, so this is
+    guarded explicitly rather than left to the backend.
+    """
+    data = pd.DataFrame(
+        {
+            "symbol": pd.Series(["A"] * 2, dtype="string"),
+            "spread": [1.0, 2.0],
+            "size": [0, 0],
+        }
+    )
+    table = con.create_table("weighted_zero_weight", data)
+
+    result = compute_averages(
+        table, cols=["spread"], group="symbol", weights=[("size", "_share_weighted")]
+    ).execute()
+
+    assert pd.isna(result["spread_share_weighted"].iloc[0])
+
+
 def test_a_null_weight_excludes_its_observation(con):
     """An observation with no weight cannot contribute to a weighted average."""
     data = pd.DataFrame(
