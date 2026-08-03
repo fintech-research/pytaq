@@ -2,11 +2,29 @@
 
 import datetime
 
+import pandas as pd
 import pytest
 
 from .cleaning.merge_quotes_nbbo import merge_quotes_nbbo
 from .conftest import DATE
 from .pipeline import DayResult, process_day
+
+
+def _raw_nbbo_frame(rows: list[tuple[float, float, float]]) -> pd.DataFrame:
+    """Raw official NBBO rows from (seconds since midnight, bid, ask)."""
+    n = len(rows)
+    return pd.DataFrame(
+        {
+            "DATE": [DATE] * n,
+            "TIME_M": [r[0] for r in rows],
+            "SYM_ROOT": pd.Series(["AAPL"] * n, dtype="string"),
+            "SYM_SUFFIX": pd.Series([None] * n, dtype="string"),
+            "BEST_BID": [r[1] for r in rows],
+            "BEST_BIDSIZESHARES": [100] * n,
+            "BEST_ASK": [r[2] for r in rows],
+            "BEST_ASKSIZESHARES": [100] * n,
+        }
+    )
 
 
 @pytest.fixture
@@ -119,6 +137,119 @@ def test_retail_variants_are_opt_in(raw_trades, raw_official_nbbo):
 
     assert "realized_spread_dollar_bjz_5min" not in plain.columns
     assert "realized_spread_dollar_bjz_5min" in retail.columns
+
+
+# ---------------------------------------------------------------------------
+# Quoted-spread statistics: the window and the locked-and-crossed exclusion
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def nbbo_with_preopen_and_locked(con):
+    """Four quotes: one before the open, one locked, two ordinary.
+
+    09:00  spread 1.00, before the trade window
+    09:30  spread 0.10, stands 900s
+    09:45  locked, stands 900s
+    10:00  spread 0.20, stands until the close
+    """
+    frame = _raw_nbbo_frame(
+        [
+            (9 * 3600, 10.0, 11.0),  # 09:00, spread 1.00
+            (9 * 3600 + 1800, 10.45, 10.55),  # 09:30, spread 0.10
+            (9 * 3600 + 2700, 10.5, 10.5),  # 09:45, locked
+            (10 * 3600, 10.4, 10.6),  # 10:00, spread 0.20
+        ]
+    )
+    return con.create_table("nbbo_preopen_locked", frame)
+
+
+def test_quoted_spread_drops_preopen_and_locked_quotes(
+    raw_trades, nbbo_with_preopen_and_locked
+):
+    """Holden and Jacobsen delete both before time-weighting.
+
+    Their code deletes quotes before 09:30 once the NBBO is built
+    (`if time lt ("9:30:00"t) then delete`) and deletes locked and crossed
+    quotes after timing them but before weighting
+    (`if BestOfr=BestBid or BestOfr<BestBid then delete`). process_day used to do
+    neither, so a spread quoted before anyone could trade against it, and a
+    spread of zero from a locked market, both entered the day's average.
+    """
+    result = process_day(raw_trades, nbbo_with_preopen_and_locked, date=DATE).execute()
+
+    # Only 09:30 (900s at 0.10) and 10:00 (21,600s at 0.20) survive.
+    expected = (0.10 * 900 + 0.20 * 21_600) / (900 + 21_600)
+    assert result["quoted_spread_dollar"].iloc[0] == pytest.approx(expected)
+
+
+def test_quoted_spread_exclusions_are_optional(
+    raw_trades, nbbo_with_preopen_and_locked
+):
+    """Both exclusions can be turned off, and then every quote counts."""
+    result = process_day(
+        raw_trades,
+        nbbo_with_preopen_and_locked,
+        date=DATE,
+        quoted_spread_start_time=None,
+        exclude_locked_crossed=False,
+    ).execute()
+
+    expected = (1.00 * 1800 + 0.10 * 900 + 0.0 * 900 + 0.20 * 21_600) / 25_200
+    assert result["quoted_spread_dollar"].iloc[0] == pytest.approx(expected)
+
+
+# ---------------------------------------------------------------------------
+# Matching precision, end to end
+# ---------------------------------------------------------------------------
+
+
+def test_the_lag_is_applied_at_nanosecond_precision(con):
+    """The quote 500ns past the lagged trade time must not be the match.
+
+    The cleaned tables carry `timestamp_ns` so that the one-millisecond lag is
+    applied to the time TAQ recorded rather than to a microsecond-truncated
+    copy of it. Here the later quote is 500 nanoseconds after the lagged trade
+    time and shares a microsecond with it, so matching on `timestamp` alone
+    would take it and report a midpoint of 20.5 instead of 10.5.
+    """
+    # Trade at 09:30:00.002000000; lagged by 1ms that is 09:30:00.001000000.
+    trades = pd.DataFrame(
+        {
+            "DATE": [DATE],
+            "TIME_M": [34200.002],
+            "TIME_M_NANO": [0],
+            "SYM_ROOT": pd.Series(["AAPL"], dtype="string"),
+            "SYM_SUFFIX": pd.Series([None], dtype="string"),
+            "EX": pd.Series(["N"], dtype="string"),
+            "SIZE": [100],
+            "PRICE": [10.5],
+            "TR_SEQNUM": [1],
+            "TR_SCOND": pd.Series(["@"], dtype="string"),
+            "TR_CORR": pd.Series(["00"], dtype="string"),
+        }
+    )
+    # The second quote is 500ns after the lagged trade time, inside the same
+    # microsecond, so it was not yet standing.
+    nbbo = _raw_nbbo_frame([(34200.000, 10.0, 11.0), (34200.001, 20.0, 21.0)])
+    nbbo["TIME_M_NANO"] = [0, 500]
+
+    day = process_day(
+        con.create_table("ns_trades", trades),
+        con.create_table("ns_nbbo", nbbo),
+        date=DATE,
+    )
+    matched = day.matched.execute()
+
+    assert len(matched) == 1
+    assert matched["midpoint"].iloc[0] == pytest.approx(10.5)
+
+
+def test_cleaned_trades_keep_the_nanosecond_key(raw_trades):
+    """Dropping it silently demoted every downstream match to microseconds."""
+    from .cleaning.trades import clean_trades
+
+    assert "timestamp_ns" in clean_trades(raw_trades).columns
 
 
 # ---------------------------------------------------------------------------

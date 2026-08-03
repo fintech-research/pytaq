@@ -1,6 +1,8 @@
 from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
+import ibis
+
 if TYPE_CHECKING:
     from ibis.expr.types import Table
 
@@ -50,10 +52,24 @@ def compute_averages(
                 # missing observations. On three observations with the middle
                 # one missing and holding 98% of the weight, that turned a
                 # correct 1.5 into 0.03.
+                #
+                # Holden and Jacobsen do sum the full weight column: their
+                # aggregation reads `sum(dollar) as sumdollar` over every
+                # retained trade and divides the weighted measure by it, so a
+                # trade their signing algorithm could not classify still enters
+                # the denominator. That is the bias described above, and it is
+                # why this deliberately does not follow them.
                 observed = table[col].notnull() & table[weight_col].notnull()
                 weighted_sum = (table[col] * table[weight_col]).sum(where=observed)
                 weight_sum = table[weight_col].sum(where=observed)
-                aggregations[col_name] = weighted_sum / weight_sum
+
+                # No observed weight leaves nothing to average. Guarding this is
+                # not cosmetic: DuckDB returns null for x/0 on floats, while
+                # postgres raises division_by_zero, so an all-null measure would
+                # fail on one backend and not the other.
+                aggregations[col_name] = (weight_sum == 0).ifelse(
+                    ibis.null(), weighted_sum / weight_sum
+                )
 
     return grouped.agg(**aggregations)
 

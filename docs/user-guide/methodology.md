@@ -10,8 +10,9 @@ This page collects the choices in one place. [The conformance table](holden-jaco
 |---|---|---|
 | Trades | 09:30 to 16:00 | Regular trading hours |
 | Quotes | **09:00** to 16:00 | Half an hour earlier, so the first trades of the day have a quote to match against |
+| Quoted-spread statistics | 09:30 to 16:00 | A spread quoted before anyone could trade against it should not enter the day's average |
 
-The asymmetry is deliberate. Narrowing the quote window to 09:30 loses the quotes that the opening trades need.
+The asymmetry is deliberate. Narrowing the quote window to 09:30 loses the quotes that the opening trades need, so the window stays open early for matching and the pre-open quotes are dropped afterwards, when the quoted spread is time-weighted. That is H&J's own sequence, and `quoted_spread_start_time` controls it.
 
 ## Trade filters
 
@@ -66,13 +67,15 @@ BJZ retail classification is also available; it postdates the paper.
 
 ## Averaging
 
-Simple, share-weighted and dollar-weighted for trade measures; time-weighted for quote measures, where a quote counts for as long as it stood.
+Simple, share-weighted and dollar-weighted for trade measures; time-weighted for quote measures, where a quote counts for as long as it stood, measured as a real number of seconds rather than in whole seconds.
 
-One deliberate departure from the paper: both sums are restricted to rows where the measure **and** the weight are observed. Summing the full weight column while the numerator skips nulls biases the result toward zero. On complete data, which is what H&J had, the two agree exactly.
+One deliberate departure from the paper: both sums are restricted to rows where the measure **and** the weight are observed. H&J sum the full weight column, so a trade their signing algorithm could not classify still enters the denominator of a share- or dollar-weighted realized spread while contributing nothing to the numerator, which biases the result toward zero in proportion to the weight those trades carry. On complete data the two agree exactly.
 
 ## Exclusions when computing measures
 
 Locked and crossed markets are excluded from quoted spreads, from effective spreads at the trade, and from realized spreads and price impacts at the horizon. A midpoint is not meaningful when the bid meets or exceeds the ask.
+
+For quoted spreads the order matters, and it follows H&J: the window is applied first, then each quote is timed, then the locked and crossed ones are dropped. A dropped quote's duration is not handed to its predecessor, it simply does not count, and every surviving quote keeps the duration it actually stood for.
 
 ## What PyTAQ does not implement
 

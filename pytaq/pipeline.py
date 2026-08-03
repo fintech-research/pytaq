@@ -45,6 +45,7 @@ from .metrics.conventions import (
     check_percent_method,
 )
 from .metrics.effective_spreads import compute_effective_spreads
+from .metrics.locks_crosses import filter_locks_crosses
 from .metrics.quoted_spreads import (
     compute_quote_inforce,
     compute_spreads,
@@ -52,6 +53,7 @@ from .metrics.quoted_spreads import (
 )
 from .metrics.rs_and_pi import compute_rs_and_pi
 from .metrics.signs import BASE_SIGNS, RETAIL_SIGNS, sign_trades
+from .metrics.timestamps import filter_timestamp
 
 if TYPE_CHECKING:
     from ibis.expr.types import Table
@@ -107,6 +109,7 @@ def process_day(
     trade_end_time: datetime.time | None = HJ_END_TIME_TRADES,
     quote_start_time: datetime.time | None = HJ_START_TIME_QUOTES,
     quote_end_time: datetime.time | None = HJ_END_TIME_QUOTES,
+    quoted_spread_start_time: datetime.time | None = HJ_START_TIME_TRADES,
     exclude_locked_crossed: bool = True,
     groupby_col: str = "symbol",
 ) -> DayResult:
@@ -136,6 +139,13 @@ def process_day(
         quote_start_time (datetime.time | None): Start of the quote window.
             Earlier than the trade window so the first trades have a quote
         quote_end_time (datetime.time | None): End of the quote window
+        quoted_spread_start_time (datetime.time | None): Start of the window for
+            quoted-spread statistics only, applied after the NBBO is in hand.
+            H&J open the quote window early so that early trades have a quote to
+            match, then drop the pre-open quotes before time-weighting, since a
+            spread quoted before the open is not a spread anyone traded against.
+            Defaults to the start of the trade window. Pass None to weight the
+            whole quote window
         exclude_locked_crossed (bool): Drop trades and quotes struck while the
             market was locked or crossed
         groupby_col (str): Column to aggregate by
@@ -165,12 +175,31 @@ def process_day(
         exclude_locked_crossed=exclude_locked_crossed,
     )
 
+    # Quoted-spread statistics, in H&J's order: restrict the window, then time
+    # each quote, then drop the locked and crossed ones. The order matters. A
+    # dropped quote's duration is not handed to its predecessor, it simply does
+    # not count, and a quote that survives keeps the duration it actually stood
+    # for.
+    quote_panel = nbbo
+    if quoted_spread_start_time is not None:
+        quote_panel = filter_timestamp(
+            quote_panel,
+            timestamp=quote_panel.timestamp,
+            start_time=quoted_spread_start_time,
+        )
+
     # The last quote of the day stands until the close.
     close = datetime.datetime.combine(date, quote_end_time or datetime.time(16, 0))
-    quoted_spreads = compute_spreads(
-        compute_quote_inforce(nbbo, end_timestamp=close, groupby_col=groupby_col),
-        percent_method=percent_method,
+    quote_panel = compute_quote_inforce(
+        quote_panel, end_timestamp=close, groupby_col=groupby_col
     )
+
+    if exclude_locked_crossed:
+        quote_panel = filter_locks_crosses(
+            quote_panel, asks=quote_panel.best_ask, bids=quote_panel.best_bid
+        )
+
+    quoted_spreads = compute_spreads(quote_panel, percent_method=percent_method)
 
     realized_spreads = None
     if horizon is not None:

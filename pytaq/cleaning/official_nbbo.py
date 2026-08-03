@@ -5,10 +5,14 @@ if TYPE_CHECKING:
     from ibis.expr.types import Table
 
 from ..hj_defaults import HJ_END_TIME_QUOTES, HJ_START_TIME_QUOTES
-from .common import filter_by_time, merge_datetime, merge_symbol
+from .common import TIMESTAMP_NS_COL, filter_by_time, merge_datetime, merge_symbol
 
+# See the note on TRADES_COLS_CLEAN: the nanosecond key is kept so that the
+# trade-to-quote match, the T+horizon match and the time in force are computed at
+# the precision TAQ actually provides.
 OFF_NBBO_COLS_CLEAN = [
     "timestamp",
+    TIMESTAMP_NS_COL,
     "symbol",
     "best_bid",
     "best_bidsizeshares",

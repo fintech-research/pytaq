@@ -11,10 +11,12 @@ from ..hj_defaults import (
     HJ_KEEP_QU_COND,
     HJ_MAX_SPREAD,
 )
-from .common import merge_datetime, merge_symbol
+from .common import TIMESTAMP_NS_COL, merge_datetime, merge_symbol
 
+# Kept aligned with NBBO_COLS_CLEAN, which merge_quotes_nbbo unions this with.
 QUOTES_COLS_CLEAN = [
     "timestamp",
+    TIMESTAMP_NS_COL,
     "symbol",
     "best_bid",
     "best_bidsizeshares",
