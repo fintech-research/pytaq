@@ -18,10 +18,12 @@ trading day 2020-01-02, using AAPL (Nasdaq-listed) and A (NYSE-listed).
 - [x] **Same question for `tr_corr`.** Populated, as `"00"`. The trades
       allowlist filter is safe.
 
-- [x] **Does the `nbbo_only` filter exclude rows it should keep?** Yes, for
-      NYSE-listed symbols. CQS uses letter codes for `natbbo_ind` while the
-      code checks for `"1"`, which never appears. All 200,763 quotes for a
-      NYSE-listed name were dropped. Filed as #30.
+- [x] **Does the `nbbo_only` filter exclude rows it should keep?** It did, for
+      every NYSE-listed symbol on data from 30 October 2017 onward. CTA
+      renumbered the National BBO Indicator from digits to letters on that date
+      (Daily TAQ Client Specification 3.0b): `A` was `0`, `G` was `1`, `O` was
+      `2`, `T` was `6`, `U` was `4`. UTP never changed. PyTAQ now accepts both
+      spellings. Fixed in #30.
 
 - [x] **What type is `time_m`?** A SQL `time`, not numeric seconds since
       midnight as every fixture assumes. No cleaning function runs against real
@@ -52,13 +54,6 @@ trading day 2020-01-02, using AAPL (Nasdaq-listed) and A (NYSE-listed).
 
 - [ ] Confirm that `merge_quotes_nbbo` on the cleaned NBBO and quote files
       reproduces WRDS's own `complete_nbbo_*` table.
-
-- [ ] The post-2016 CQS `natbbo_ind` codes. The 2013 Daily TAQ specification
-      documents CQS as numeric (`0`, `1`, `2`, `4`, `6`) and that matches the
-      2016 data exactly, so PyTAQ's filter is correct for that era. By 2020 CQS
-      serves letters (`A`, `U`, `G`, `O`) and the filter drops every NYSE-listed
-      quote. Resolving this needs a current specification; the 2013 edition in
-      `~/Dropbox/Projects/taq docs/` predates the change. See #30.
 
 - [ ] Whether the one-millisecond trade-to-quote lag H&J specify should remain
       the default now that TAQ carries nanoseconds. See #40.

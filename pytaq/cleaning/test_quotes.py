@@ -431,3 +431,86 @@ def test_one_sided_quotes_keep_their_live_side(duckdb_con):
     # Ask-only quote keeps its ask.
     assert pd.isna(result["bid"].iloc[1])
     assert result["ask"].iloc[1] == 10.5
+
+
+# ---------------------------------------------------------------------------
+# natbbo_ind encodings (#30)
+#
+# CTA renumbered the National BBO Indicator from digits to letters on
+# 30 October 2017 (Daily TAQ Client Specification 3.0b):
+#   A = formerly '0'   G = formerly '1'   O = formerly '2'
+#   T = formerly '6'   U = formerly '4'
+# UTP never changed. Only '1'/'G' and UTP '4' mean "this quote is itself the
+# NBBO"; the appendage codes mean the NBBO arrives in the NBBO file instead.
+# ---------------------------------------------------------------------------
+
+
+def _quotes_with_codes(duckdb_con, name, pairs):
+    """A quote table with one row per (qu_source, natbbo_ind) pair."""
+    n = len(pairs)
+    data = pd.DataFrame(
+        {
+            "qu_source": pd.Series([s for s, _ in pairs], dtype="string"),
+            "natbbo_ind": pd.Series([i for _, i in pairs], dtype="string"),
+            "qu_cond": pd.Series(["R"] * n, dtype="string"),
+            "qu_cancel": pd.Series([None] * n, dtype="string"),
+            "bid": [10.0] * n,
+            "bidsiz": [100] * n,
+            "ask": [10.5] * n,
+            "asksiz": [100] * n,
+        }
+    )
+    return duckdb_con.create_table(name, data)
+
+
+def test_nbbo_only_accepts_the_pre_2017_cta_encoding(duckdb_con):
+    table = _quotes_with_codes(
+        duckdb_con, "cta_numeric", [("C", "0"), ("C", "1"), ("C", "2"), ("C", "4")]
+    )
+
+    result = filter_quote_table(table).execute()
+
+    assert list(result["natbbo_ind"]) == ["1"]
+
+
+def test_nbbo_only_accepts_the_post_2017_cta_encoding(duckdb_con):
+    """Regression test: this returned zero rows, dropping every NYSE-listed
+    quote on data from 30 October 2017 onward."""
+    table = _quotes_with_codes(
+        duckdb_con, "cta_alpha", [("C", "A"), ("C", "G"), ("C", "O"), ("C", "U")]
+    )
+
+    result = filter_quote_table(table).execute()
+
+    assert list(result["natbbo_ind"]) == ["G"]
+
+
+def test_nbbo_only_keeps_utp_code_four(duckdb_con):
+    """UTP never renumbered."""
+    table = _quotes_with_codes(duckdb_con, "utp", [("N", "0"), ("N", "2"), ("N", "4")])
+
+    result = filter_quote_table(table).execute()
+
+    assert list(result["natbbo_ind"]) == ["4"]
+
+
+def test_nbbo_only_handles_a_sample_spanning_the_encoding_change(duckdb_con):
+    """Both spellings at once, since the codes cannot collide."""
+    table = _quotes_with_codes(
+        duckdb_con,
+        "mixed_eras",
+        [("C", "1"), ("C", "G"), ("C", "A"), ("N", "4"), ("N", "0")],
+    )
+
+    result = filter_quote_table(table).execute()
+
+    assert sorted(result["natbbo_ind"]) == ["1", "4", "G"]
+
+
+def test_nbbo_codes_are_overridable(duckdb_con):
+    """A user with a different sample period can supply their own codes."""
+    table = _quotes_with_codes(duckdb_con, "override", [("C", "G"), ("C", "U")])
+
+    result = filter_quote_table(table, cta_nbbo_codes=("U",)).execute()
+
+    assert list(result["natbbo_ind"]) == ["U"]
