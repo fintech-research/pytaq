@@ -92,6 +92,10 @@ markers = [
 
 [tool.coverage.run]
 source = ["pytaq"]
+# Branch coverage, not just line coverage. Most of the optional behaviour here
+# is a flag guarding one statement, and line coverage counts the guarded line
+# as covered without ever taking the other way through the branch.
+branch = true
 # Test files are 100% covered by construction. Counting them inflated the
 # reported figure from 47% to 75% at one point, so they are excluded.
 omit = ["*/test_*.py", "*/conftest.py"]
