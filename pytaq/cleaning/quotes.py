@@ -23,6 +23,31 @@ QUOTES_COLS_CLEAN = [
 
 QUOTES_COLS_FLAGS = ["qu_cond", "natbbo_ind", "qu_source", "qu_cancel"]
 
+# Quotes that are themselves the NBBO, and so do not generate a record in the
+# NBBO file. These are the ones that must be pulled from the quotes file to
+# reconstruct a complete NBBO, which is what WRDS's own guidance says:
+#
+#   you would have to combine quotes data with NBBO data to generate a true
+#   history of NBBO for a given date, if for no other reason than to find the
+#   quotes with NATBBO_IND=1 ... (i.e. quotes that in themselves constitute
+#   both new best bids and new best asks, but did not generate an NBBO
+#   "appendage").
+#
+# CTA renumbered these from digits to letters on 30 October 2017 (Daily TAQ
+# Client Specification 3.0b). Both spellings are accepted, since they cannot
+# collide and a sample may straddle the change:
+#
+#   A = formerly '0'   G = formerly '1'   O = formerly '2'
+#   T = formerly '6'   U = formerly '4'
+#
+# Only '1'/'G' mean "this quote is itself both the best bid and the best
+# offer". The appendage codes ('4'/'U', '6'/'T') mean the new NBBO is carried
+# in the NBBO file instead, so taking them here would double count.
+#
+# UTP never renumbered: '4' means the quote is itself the NBBO.
+CTA_NBBO_ELIGIBLE: tuple[str, ...] = ("1", "G")
+UTP_NBBO_ELIGIBLE: tuple[str, ...] = ("4",)
+
 
 def _neutralize(t: ibis.Table, condition, sides: str = "both") -> ibis.Table:
     """Null out one or both sides of a quote where `condition` holds.
@@ -96,6 +121,8 @@ def filter_quote_table(
     exclude_abnormal_spreads: bool = True,
     max_spread: Decimal = HJ_MAX_SPREAD,
     nbbo_only: bool = True,
+    cta_nbbo_codes: Sequence[str] = CTA_NBBO_ELIGIBLE,
+    utp_nbbo_codes: Sequence[str] = UTP_NBBO_ELIGIBLE,
 ) -> ibis.Table:
     """Exclude unusable quotes from the NBBO, following Holden and Jacobsen.
 
@@ -117,6 +144,10 @@ def filter_quote_table(
             `max_spread`
         max_spread (Decimal): Maximum plausible spread, in dollars
         nbbo_only (bool): Keep only rows that are themselves the NBBO
+        cta_nbbo_codes (Sequence[str]): `natbbo_ind` values on the CTA feed
+            marking a quote that is itself the NBBO. Both the pre- and
+            post-2017 spellings by default
+        utp_nbbo_codes (Sequence[str]): The same for the UTP feed
 
     Returns:
         ibis.Table: The quote table with unusable sides nulled
@@ -145,8 +176,8 @@ def filter_quote_table(
     # Keep only those to be merged with NBBO file. This one is a real filter.
     if nbbo_only:
         t = t.filter(
-            ((t.qu_source == "C") & (t.natbbo_ind == "1"))
-            | ((t.qu_source == "N") & (t.natbbo_ind == "4"))
+            ((t.qu_source == "C") & t.natbbo_ind.isin(cta_nbbo_codes))
+            | ((t.qu_source == "N") & t.natbbo_ind.isin(utp_nbbo_codes))
         )
 
     return t
@@ -162,6 +193,8 @@ def clean_quote_table(
     max_spread: Decimal = HJ_MAX_SPREAD,
     nbbo_only: bool = True,
     output_flags: bool = False,
+    cta_nbbo_codes: Sequence[str] = CTA_NBBO_ELIGIBLE,
+    utp_nbbo_codes: Sequence[str] = UTP_NBBO_ELIGIBLE,
 ) -> ibis.Table:
     """Clean a raw quote table from TAQ.
 
@@ -175,6 +208,9 @@ def clean_quote_table(
         max_spread (Decimal): Maximum plausible spread, in dollars
         nbbo_only (bool): Keep only rows that are themselves the NBBO
         output_flags (bool): Keep the quote condition and source flags
+        cta_nbbo_codes (Sequence[str]): `natbbo_ind` values on the CTA feed
+            marking a quote that is itself the NBBO
+        utp_nbbo_codes (Sequence[str]): The same for the UTP feed
 
     Returns:
         ibis.Table: Cleaned quote table
@@ -191,6 +227,8 @@ def clean_quote_table(
         exclude_abnormal_spreads=exclude_abnormal_spreads,
         max_spread=max_spread,
         nbbo_only=nbbo_only,
+        cta_nbbo_codes=cta_nbbo_codes,
+        utp_nbbo_codes=utp_nbbo_codes,
     )
 
     # Rename columns (Ibis rename uses {new_name: old_name} mapping)

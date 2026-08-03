@@ -18,7 +18,7 @@ Legend: **matches**, **differs** (tracked by an issue), **absent**.
 | One-sided quotes | keep, neutralise the absent side | same | matches |
 | Spread wider than $5 | neutralise | neutralises both sides | matches |
 | Withdrawn quotes | neutralise, **explicitly not deleted** | neutralises the affected side | matches |
-| NBBO eligibility | not applicable to MTAQ | `qu_source` and `natbbo_ind` | matches the 2013 spec; breaks on post-2016 CQS, #30 |
+| NBBO eligibility | not applicable to MTAQ | `qu_source` and `natbbo_ind`, both encodings | matches |
 
 These filters set the offending side to null rather than dropping the row, which is what H&J require: deleting a withdrawn quote leaves that exchange's *previous* quote standing in the reconstructed NBBO, the stale-quote error the paper is about. PyTAQ uses null where H&J use the sentinel values 0 and 9999999, which are a SAS artefact.
 
@@ -86,7 +86,7 @@ On the weighted averages: H&J sum the full weight column, which is correct for t
 | Item | Note |
 |---|---|
 | Interpolated Time | An MTAQ technique, for second-resolution timestamps. PyTAQ targets DTAQ, where H&J's recommendation is the official complete NBBO with a one-millisecond lag. Only needed for pre-2015 monthly TAQ |
-| NBBO reconstruction across exchanges | H&J rebuild the NBBO from per-exchange quotes. PyTAQ's `merge_quotes_nbbo` unions the NBBO and quote files instead, which is the DTAQ equivalent |
+| NBBO reconstruction across exchanges | H&J rebuild the NBBO from per-exchange quotes. PyTAQ's `merge_quotes_nbbo` unions the NBBO and quote files instead, which is the DTAQ equivalent and what WRDS's own guidance recommends: the NBBO file omits quotes that are themselves both the new best bid and best offer, so they must come from the quotes file |
 | Maximum depth | H&J report both total depth across venues and the largest single-venue depth. PyTAQ computes only the total |
 | Duration Limited Control | H&J test it and recommend against it. Deliberately absent |
 | Excluding regional exchanges | H&J test it and prefer excluding locked and crossed instead. Deliberately absent |
