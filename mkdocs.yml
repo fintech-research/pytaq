@@ -3,6 +3,9 @@ site_description: Python module for processing NYSE TAQ (Trade and Quote) data u
 site_author: Vincent Grégoire
 repo_url: https://github.com/fintech-research/pytaq
 repo_name: fintech-research/pytaq
+copyright: >
+  Copyright &copy; 2025 Vincent Grégoire. PyTAQ is an independent project, not
+  affiliated with or endorsed by NYSE, ICE, or WRDS.
 
 theme:
   name: material
@@ -73,16 +76,14 @@ nav:
       - Installation: getting-started/installation.md
       - Quick Start: getting-started/quickstart.md
       - Configuration: getting-started/configuration.md
-  - Guide:
-      - Methodology and defaults: guide/methodology.md
-      - Performance: guide/performance.md
-      - Troubleshooting: guide/troubleshooting.md
   - User Guide:
       - Data Cleaning: user-guide/cleaning.md
       - Computing Metrics: user-guide/metrics.md
       - Working with NBBO: user-guide/nbbo.md
-  - Reference:
-      - Holden and Jacobsen conformance: reference/holden-jacobsen.md
+      - Methodology and defaults: user-guide/methodology.md
+      - Performance: user-guide/performance.md
+      - Troubleshooting: user-guide/troubleshooting.md
+      - Holden and Jacobsen conformance: user-guide/holden-jacobsen.md
   - API Reference:
       - Pipeline: api/pipeline.md
       - Data Sources: api/data-sources.md
@@ -96,6 +97,7 @@ nav:
   - About:
       - Changelog: about/changelog.md
       - License: about/license.md
+      - Disclaimer: about/disclaimer.md
 
 extra:
   social:

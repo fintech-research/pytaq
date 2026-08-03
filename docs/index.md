@@ -4,6 +4,10 @@ Process NYSE TAQ trade and quote data with [Ibis](https://ibis-project.org/).
 
 PyTAQ implements the standard cleaning and liquidity-metric pipeline for TAQ data, following [Holden and Jacobsen (2014)](https://doi.org/10.1111/jofi.12127). Because it is written against Ibis rather than a single engine, the same code runs on the WRDS postgres server and on local copies of the data.
 
+!!! info "Not affiliated with NYSE or WRDS"
+
+    PyTAQ is an independent open-source project, not affiliated with, endorsed by, or sponsored by NYSE, ICE, or WRDS. It ships no market data: you need your own licensed access. See the [full disclaimer](about/disclaimer.md).
+
 ## Three ways to use it
 
 | | What it is | Install | Good for |
@@ -14,7 +18,7 @@ PyTAQ implements the standard cleaning and liquidity-metric pipeline for TAQ dat
 
 Only the first step differs. Cleaning and metrics are identical in all three.
 
-A word of warning on the middle path: querying the WRDS server from your own machine runs the as-of joins and window functions remotely, over the network, on a shared server. It is fine for a few symbols or part of a day and slow for anything more. See [Performance](guide/performance.md) for the pattern to use instead.
+A word of warning on the middle path: querying the WRDS server from your own machine runs the as-of joins and window functions remotely, over the network, on a shared server. It is fine for a few symbols or part of a day and slow for anything more. See [Performance](user-guide/performance.md) for the pattern to use instead.
 
 ## A short example
 
@@ -51,10 +55,10 @@ print(day.execute())  # one row per symbol
 
 - [Installation](getting-started/installation.md), which extra you need
 - [Quick start](getting-started/quickstart.md), a worked example for each of the three paths
-- [Methodology and defaults](guide/methodology.md), every choice PyTAQ makes and why
-- [Performance](guide/performance.md), which path to use for what
-- [Troubleshooting](guide/troubleshooting.md)
-- [Holden and Jacobsen conformance](reference/holden-jacobsen.md), where PyTAQ matches the paper and where it deliberately does not
+- [Methodology and defaults](user-guide/methodology.md), every choice PyTAQ makes and why
+- [Performance](user-guide/performance.md), which path to use for what
+- [Troubleshooting](user-guide/troubleshooting.md)
+- [Holden and Jacobsen conformance](user-guide/holden-jacobsen.md), where PyTAQ matches the paper and where it deliberately does not
 
 ## A note on backends
 

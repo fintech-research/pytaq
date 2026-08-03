@@ -59,6 +59,14 @@ data/
 
 Parquet and CSV are both read; the extension decides. Column names may be upper or lower case.
 
+!!! tip "Coming from SAS files"
+
+    TAQ pulled off WRDS arrives as `sas7bdat`, which DuckDB does not read. Convert it to Parquet once, which is worth doing regardless: the files are smaller and far faster to scan. [Daflip](https://www.vincentgregoire.com/daflip/) does it in one line, with no install needed:
+
+    ```bash
+    uvx daflip ctm_20200102.sas7bdat data/ctm_20200102.parquet
+    ```
+
 ```python
 import datetime
 

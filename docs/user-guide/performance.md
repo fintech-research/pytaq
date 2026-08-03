@@ -67,6 +67,12 @@ The download is one scan per table. Everything after it runs at local speed, and
 
 If you are running many dates, export the daily tables once and use [`pytaq.local`](../getting-started/quickstart.md). That is what the local path exists for.
 
+Store them as Parquet. If your copies came off WRDS as `sas7bdat`, convert them first, since DuckDB does not read that format: [Daflip](https://www.vincentgregoire.com/daflip/) converts a file in one command.
+
+```bash
+uvx daflip ctm_20200102.sas7bdat data/ctm_20200102.parquet
+```
+
 ## Backends
 
 Use **DuckDB** for local work.
