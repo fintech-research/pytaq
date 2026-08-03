@@ -10,6 +10,8 @@ Completion of the pandas-to-Ibis refactor and everything needed to publish.
 
 ### Added
 
+- `process_day()`, running the standard Holden and Jacobsen pipeline for one date in a single call and returning every intermediate stage. The stage ordering carries constraints that are easy to get subtly wrong and produce plausible-looking wrong numbers
+
 - `pytaq.local`, reading TAQ data from local Parquet or CSV files through DuckDB. This is the third supported usage path and had no support before
 - A public API: `pytaq.__all__`, `__all__` on every subpackage, and `pytaq.__version__` from the installed metadata. All `__init__.py` files were previously empty
 - Optional extras (`duckdb`, `polars`, `postgres`, `all`) so the backend you install matches how you use the package
@@ -21,6 +23,9 @@ Completion of the pandas-to-Ibis refactor and everything needed to publish.
 - End-to-end tests covering a full local-files workflow, and first tests for `cleaning/nbbo.py`, `merge_trades_official_nbbo`, `sign_tick` and `sign_trades`
 
 ### Fixed
+
+- **`merge_quotes_nbbo` returned about 3% of the rows it should**, and the wrong ones. `ibis.row_number()` is zero-based, so filtering on rank 1 kept the second-highest sequence number at each timestamp and dropped every timestamp holding a single quote. On one day of AAPL it returned 18,651 rows where 550,307 were correct. Only a self-union was ever tested, which masks the off-by-one exactly
+- **`clean_nbbo` and `clean_quote_table` emitted different schemas**, so the documented NBBO reconstruction raised `RelationError`. `clean_nbbo` also omitted `qu_seqnum`, which the dedup ranks on
 
 - **Cancelled-quote filters silently dropped every quote with a null `qu_cancel`.** `qu_cancel != "B"` is NULL in SQL for a null flag, not true. On a traced fixture `clean_nbbo` returned 0 rows from 4
 - **`filter_changes_only` dropped the opening quote of every symbol.** Comparing against `lag()` with `!=` yields NULL on the first row of each group. Now uses null-safe comparison

@@ -50,10 +50,32 @@ trading day 2020-01-02, using AAPL (Nasdaq-listed) and A (NYSE-listed).
       microsecond, which `merge_quotes_nbbo` resolves with `qu_seqnum` instead.
 
 - [ ] Confirm the cleaning output reproduces the SAS / Holden and Jacobsen
-      reference results on a known sample date. Blocked behind #29 and #33.
+      reference results on a known sample date. No longer blocked: the pipeline
+      runs end to end on both sources. Needs a published reference figure to
+      compare against, since H&J report 2008 averages over 100 stocks rather
+      than per-symbol numbers.
 
-- [ ] Confirm that `merge_quotes_nbbo` on the cleaned NBBO and quote files
-      reproduces WRDS's own `complete_nbbo_*` table.
+- [x] **Does `merge_quotes_nbbo` reproduce WRDS's own `complete_nbbo_*`?**
+      Substantially, yes. AAPL, 2016-12-07:
+
+      | | rows |
+      |---|---|
+      | reconstructed, `keep_changes_only=False` | 571,268 |
+      | WRDS `complete_nbbo`, all rows | 569,448 |
+      | reconstructed, `keep_changes_only=True` | 550,307 |
+      | WRDS `complete_nbbo`, distinct timestamps | 548,522 |
+
+      Both settings land within 0.33% of the matching WRDS figure, and the
+      count difference between them is explained: WRDS keeps 20,926 rows
+      sharing a timestamp with another, which `keep_changes_only` collapses.
+
+      On rows present in both, **99.88% agree exactly on best bid and best
+      ask** (568,772 of 569,448). Still open: the systematic excess of roughly
+      1,800 quotes we include and WRDS does not, and the 676 value
+      disagreements, which are single-tick differences on one side.
+
+- [ ] Explain the ~1,800 excess quotes and the 676 single-tick value
+      disagreements in the reconstruction above.
 
 - [ ] Whether the one-millisecond trade-to-quote lag H&J specify should remain
       the default now that TAQ carries nanoseconds. See #40.

@@ -80,6 +80,7 @@ nav:
   - Reference:
       - Holden and Jacobsen conformance: reference/holden-jacobsen.md
   - API Reference:
+      - Pipeline: api/pipeline.md
       - Data Sources: api/data-sources.md
       - Cleaning Module: api/cleaning.md
       - Metrics Module: api/metrics.md

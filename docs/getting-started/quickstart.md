@@ -1,5 +1,42 @@
 # Quick start
 
+## The short version
+
+```python
+import datetime
+
+from pytaq import local, process_day
+
+con = local.connect()
+date = datetime.date(2020, 1, 2)
+
+day = process_day(
+    local.get_trades(con, "data/", date, symbols=["AAPL"]),
+    local.get_official_complete_nbbo(con, "data/", date, symbols=["AAPL"]),
+    date=date,
+)
+
+daily = day.execute()
+```
+
+`process_day` runs the standard Holden and Jacobsen pipeline end to end and returns one row per symbol. It exists because the stages have an order, and the order carries constraints that are easy to get subtly wrong: the quote window opens half an hour before the trade window so the first trades have something to match, trades are matched to the quote in force one millisecond earlier, and realized spreads need the NBBO a second time at a later horizon. Getting any of that wrong produces plausible numbers rather than an error.
+
+Every intermediate is on the returned object, and every underlying option is a keyword argument:
+
+```python
+day.signed              # trades with all four sign columns
+day.effective_spreads   # per-trade measures
+day.quoted_spreads      # per-quote measures with time in force
+day.realized_spreads    # per-trade, at the horizon
+
+process_day(..., horizon=datetime.timedelta(minutes=1), horizon_suffix="1min")
+process_day(..., percent_method="log", track_retail=True)
+```
+
+The rest of this page assembles the same pipeline by hand, which is worth reading once even if you only ever call `process_day`.
+
+## The long version
+
 Every workflow has the same three stages. Only the first differs between the three usage paths.
 
 1. **Open** the raw daily tables

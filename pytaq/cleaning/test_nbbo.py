@@ -30,6 +30,9 @@ def _raw_nbbo(n_rows=4, qu_cancel=None):
                 qu_cancel if qu_cancel is not None else [None] * n_rows,
                 dtype="string",
             ),
+            "BEST_BIDEX": pd.Series(["N"] * n_rows, dtype="string"),
+            "BEST_ASKEX": pd.Series(["N"] * n_rows, dtype="string"),
+            "QU_SEQNUM": list(range(1, n_rows + 1)),
         }
     )
 
