@@ -53,7 +53,7 @@ They should not. If they do, the ordering is underdetermined somewhere: timestam
 
 ## Numbers disagree with a published paper
 
-Check [the conformance table](../reference/holden-jacobsen.md) first. The defaults follow Holden and Jacobsen, but two things differ deliberately, and other papers make different choices again, particularly on the percent convention and the trade-quote lag. Both are arguments:
+Check [the conformance table](holden-jacobsen.md) first. The defaults follow Holden and Jacobsen, but two things differ deliberately, and other papers make different choices again, particularly on the percent convention and the trade-quote lag. Both are arguments:
 
 ```python
 process_day(..., percent_method="log", lag=datetime.timedelta(0))

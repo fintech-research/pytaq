@@ -58,6 +58,8 @@ Nothing runs until `.execute()`. Ibis builds an expression and hands the whole t
 
 Querying the WRDS server from your own machine runs the as-of joins and window functions remotely, over the network, on a shared machine. **It suits small queries: a few symbols, or part of a day.** For anything larger, materialise the raw tables locally first and run the pipeline against those, which is what the local path is for. A full symbol-day takes well under a second locally.
 
+Keep local copies as Parquet. WRDS hands you `sas7bdat`, which DuckDB does not read, so convert it once with [Daflip](https://www.vincentgregoire.com/daflip/): `uvx daflip ctm_20200102.sas7bdat data/ctm_20200102.parquet`.
+
 ## Backends
 
 Use DuckDB for local work. Ibis 12's polars backend implements no window functions, and much of PyTAQ depends on them, so the `polars` extra cannot run the full pipeline.
@@ -86,6 +88,10 @@ There is no CI; pre-commit is the gate. It runs `ruff` and `ty`.
 
 The package is in active development and the API may still change. `TO_VERIFY.md` lists claims that need real TAQ data to confirm.
 
+## Disclaimer
+
+PyTAQ is an independent open-source project, not affiliated with, endorsed by, or sponsored by the New York Stock Exchange (NYSE), Intercontinental Exchange (ICE), Wharton Research Data Services (WRDS), or the Wharton School of the University of Pennsylvania. NYSE, TAQ and WRDS are marks of their respective owners, used here only to identify the data formats and services PyTAQ reads. PyTAQ distributes no market data; using it requires your own licensed access.
+
 ## License
 
-BSD 3-Clause. See [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).

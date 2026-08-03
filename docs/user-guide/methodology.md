@@ -2,7 +2,7 @@
 
 Every filter and every convention PyTAQ applies is a choice. The defaults reproduce [Holden and Jacobsen (2014)](https://doi.org/10.1111/jofi.12127), which is the de facto standard in empirical microstructure work, and every one is a keyword argument you can change.
 
-This page collects the choices in one place. [The conformance table](../reference/holden-jacobsen.md) maps each of them to the paper.
+This page collects the choices in one place. [The conformance table](holden-jacobsen.md) maps each of them to the paper.
 
 ## Time windows
 
