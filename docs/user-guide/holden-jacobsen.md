@@ -9,7 +9,7 @@ There are **two** published programs, and they do not agree with each other:
 - the **MTAQ** code of September 2013, printed at the end of the Internet Appendix, which reconstructs the NBBO from the consolidated quote file and uses Interpolated Time
 - the **DTAQ** code of 16 March 2018, distributed separately, which is the one to compare against here, since it targets the same data PyTAQ does
 
-Where the two differ, the DTAQ code wins for our purposes and the row below says so. Two of those differences are conventions PyTAQ does not currently default to, noted under percent measures and the trade-quote lag.
+Where the two differ, the DTAQ code wins and PyTAQ's defaults follow it: percent measures are log differences and the trade-to-quote lag is one nanosecond. Both MTAQ conventions remain available, since a large body of published work rests on them.
 
 Legend: **matches**, **differs** (tracked by an issue), **absent**.
 
@@ -35,7 +35,7 @@ These filters set the offending side to null rather than dropping the row, which
 
 | Step | Holden and Jacobsen | PyTAQ | Status |
 |---|---|---|---|
-| Quote timing, DTAQ | paper: one millisecond. **2018 code: one nanosecond** (`time_m=time_m+.000000001`) | one millisecond by default, `lag` parameter | matches the paper, not the current code |
+| Quote timing, DTAQ | paper: one millisecond. 2018 code: **one nanosecond** (`time_m=time_m+.000000001`) | one nanosecond by default, `HJ_PAPER_TRADE_QUOTE_LAG_NS` for the paper's | matches the code |
 | Match direction | most recent prior quote | as-of join, backward, nanosecond precision | matches |
 | Trades with no prior quote | not applicable | kept, null quote columns | extension |
 
@@ -54,7 +54,7 @@ These filters set the offending side to null rather than dropping the row, which
 
 Dollar measures agree throughout.
 
-**Percent measures are the one place PyTAQ's default does not match the DTAQ code.** Their 2018 program computes every percent measure as a log difference:
+**Percent measures follow the DTAQ code, which uses log differences.** Their 2018 program computes every one that way:
 
 ```sas
 wQuotedSpread_Percent   = (log(Best_Ask) - log(Best_Bid)) * inforce;
@@ -63,18 +63,18 @@ wPercentRealizedSpread_LR = BuySellLR * (log(price) - log(midpoint5)) * 2;
 wPercentPriceImpact_LR    = BuySellLR * (log(midpoint5) - log(midpoint)) * 2;
 ```
 
-Their 2013 MTAQ program divided the dollar measure by the reference midpoint instead. PyTAQ defaults to that ratio form, so `percent_method="log"` is what reproduces the DTAQ code, and each of the four formulas above matches PyTAQ's log branch exactly. The two conventions agree to first order and diverge as spreads widen. Whether the default should change is [an open question](https://github.com/fintech-research/pytaq/blob/main/TO_VERIFY.md), not an oversight, since a great deal of published work uses the ratio form.
+Their 2013 MTAQ program divided the dollar measure by the reference midpoint instead. **PyTAQ defaults to the log form**, matching the DTAQ code formula for formula, since DTAQ is what PyTAQ targets. `percent_method="ratio"` restores the MTAQ convention, which much of the published literature uses. The two agree to first order and diverge as spreads widen.
 
 | Measure | Holden and Jacobsen | PyTAQ | Status |
 |---|---|---|---|
 | Dollar quoted spread | `ask - bid` | same | matches |
-| Percent quoted spread | DTAQ: `log(ask) - log(bid)` | `percent_method="log"` | matches with `log`, not with the `ratio` default |
+| Percent quoted spread | DTAQ: `log(ask) - log(bid)` | same by default | matches, `percent_method="ratio"` for the MTAQ form |
 | Dollar effective spread | `2·abs(P - M)` | same | matches |
-| Percent effective spread | DTAQ: `2·abs(log P - log M)` | `percent_method="log"` | matches with `log` |
+| Percent effective spread | DTAQ: `2·abs(log P - log M)` | same by default | matches |
 | Dollar realized spread | `2·D·(P - M₅)` | same | matches |
-| Percent realized spread | DTAQ: `2·D·(log P - log M₅)` | `percent_method="log"` | matches with `log` |
+| Percent realized spread | DTAQ: `2·D·(log P - log M₅)` | same by default | matches |
 | Dollar price impact | DTAQ: `2·D·(M₅ - M)` | same | matches |
-| Percent price impact | DTAQ: `2·D·(log M₅ - log M)` | `percent_method="log"` | matches with `log` |
+| Percent price impact | DTAQ: `2·D·(log M₅ - log M)` | same by default | matches |
 | Realized spread horizon | 5 minutes | `delay` parameter, default 5 minutes | matches |
 | Denominator for RS and PI | the **future** midpoint `M₅` | `M₅` in the dollar form | matches |
 
@@ -111,7 +111,7 @@ On the weighted averages: H&J sum the full weight column. Their aggregation read
 
 | Item | Note |
 |---|---|
-| Interpolated Time | An MTAQ technique, for second-resolution timestamps. PyTAQ targets DTAQ, where H&J's recommendation is the official complete NBBO with a one-millisecond lag. Only needed for pre-2015 monthly TAQ |
+| Interpolated Time | An MTAQ technique, for second-resolution timestamps. PyTAQ targets DTAQ, where H&J's recommendation is the official complete NBBO with a one-nanosecond lag. Only needed for pre-2015 monthly TAQ |
 | NBBO reconstruction across exchanges | H&J rebuild the NBBO from per-exchange quotes. PyTAQ's `merge_quotes_nbbo` unions the NBBO and quote files instead, which is the DTAQ equivalent and what WRDS's own guidance recommends: the NBBO file omits quotes that are themselves both the new best bid and best offer, so they must come from the quotes file |
 | Maximum depth | H&J report both total depth across venues and the largest single-venue depth. PyTAQ computes only the total |
 | Duration Limited Control | H&J test it and recommend against it. Deliberately absent |

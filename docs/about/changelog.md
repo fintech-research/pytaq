@@ -4,6 +4,20 @@ All notable changes to PyTAQ are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-08-05
+
+Defaults now follow Holden and Jacobsen's own Daily TAQ program of 16 March 2018, rather than the 2014 paper and the 2013 monthly TAQ code. Reading that program is also what turned up the NBBO fix below.
+
+### Breaking
+
+- **Percent measures default to log differences.** Their DTAQ code computes every one that way, `abs(log(price) - log(midpoint)) * 2` and so on, where their 2013 MTAQ code divided the dollar measure by a midpoint. `percent_method="ratio"` restores the older convention, which much of the published literature uses. **Every percent measure changes**, by a second-order amount that grows with the spread
+- **The trade-to-quote lag defaults to one nanosecond**, which is what their DTAQ code applies (`time_m=time_m+.000000001`), not the millisecond the paper specifies for a data set that no longer exists. `HJ_PAPER_TRADE_QUOTE_LAG_NS` restores it. Effective and realized spreads change on trades that were matched to a quote between one nanosecond and one millisecond old
+- **The `lag` argument is an integer count of nanoseconds.** A `datetime.timedelta` cannot represent a nanosecond, its finest unit being the microsecond, so a timedelta of one nanosecond silently becomes zero. Timedeltas are still accepted and converted. `HJ_TRADE_QUOTE_LAG` is renamed `HJ_TRADE_QUOTE_LAG_NS`
+
+### Fixed
+
+- **`merge_quotes_nbbo` collapsed quotes that share a microsecond.** The dedup and the ordering keyed on the microsecond `timestamp`, so of two quotes 500 nanoseconds apart only the higher sequence number survived. H&J dedup on `time_m`, which resolves to the nanosecond in DTAQ. On AAPL for 2020-01-02 that is 2,655 NBBO rows, 0.67%, every one separable in nanoseconds. The reconstructed complete NBBO now keeps them
+
 ## [0.4.0] - 2026-08-03
 
 Four corrections found by implementing the same pipeline in SAS and reading Holden and Jacobsen's own September 2013 code line by line. Three change published numbers.

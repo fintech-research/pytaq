@@ -4,7 +4,10 @@ import ibis
 import pandas as pd
 import pytest
 
-from .merge_trades_official_nbbo import merge_trades_official_nbbo
+from .merge_trades_official_nbbo import (
+    HJ_PAPER_TRADE_QUOTE_LAG_NS,
+    merge_trades_official_nbbo,
+)
 
 
 @pytest.fixture
@@ -157,18 +160,39 @@ def same_instant(duckdb_con):
     )
 
 
-def test_default_lag_excludes_the_same_instant_quote(same_instant):
-    """H&J specify a one-millisecond lag for DTAQ.
+def test_the_papers_millisecond_lag_excludes_the_same_instant_quote(same_instant):
+    """The 2014 paper specifies one millisecond for DTAQ.
 
     A quote stamped in the same instant as the trade may be a consequence of
-    it, so it is not the state the trader faced.
+    it, so it is not the state the trader faced. This is no longer the default,
+    since H&J's own 2018 code lags by a nanosecond, but it stays one constant
+    away.
+    """
+    trades, quotes = same_instant
+
+    result = merge_trades_official_nbbo(
+        trades, quotes, lag=HJ_PAPER_TRADE_QUOTE_LAG_NS
+    ).execute()
+
+    assert result["best_bid"].iloc[0] == 99.0
+    assert result["best_ask"].iloc[0] == 101.0
+
+
+def test_a_subsecond_lag_degrades_on_microsecond_only_timestamps(same_instant):
+    """Without the nanosecond key, a one-nanosecond lag cannot be expressed.
+
+    The default lag is a single nanosecond, and `timestamp` holds microseconds,
+    so the closest available behaviour is a contemporaneous match. That is a
+    property of the resolution, not a silent loss: at microsecond resolution a
+    quote in the same microsecond as the trade is indistinguishable from one a
+    nanosecond earlier. Tables from the cleaners carry `timestamp_ns` and do not
+    take this path.
     """
     trades, quotes = same_instant
 
     result = merge_trades_official_nbbo(trades, quotes).execute()
 
-    assert result["best_bid"].iloc[0] == 99.0
-    assert result["best_ask"].iloc[0] == 101.0
+    assert result["best_bid"].iloc[0] == 98.0
 
 
 def test_zero_lag_matches_contemporaneous_quotes(same_instant):
@@ -206,7 +230,7 @@ def test_a_longer_lag_reaches_further_back(duckdb_con):
     q = duckdb_con.create_table("long_lag_quotes", quotes)
 
     # 1ms back from 09:30:00.600 is still after the 09:30:00.500 quote.
-    near = merge_trades_official_nbbo(t, q).execute()
+    near = merge_trades_official_nbbo(t, q, lag=HJ_PAPER_TRADE_QUOTE_LAG_NS).execute()
     assert near["best_bid"].iloc[0] == 98.0
 
     # 200ms back lands before it, so the earlier quote applies.
