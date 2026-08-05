@@ -79,22 +79,17 @@ trading day 2020-01-02, using AAPL (Nasdaq-listed) and A (NYSE-listed).
 - [ ] Explain the ~1,800 excess quotes and the 676 single-tick value
       disagreements in the reconstruction above.
 
-- [ ] Whether the one-millisecond trade-to-quote lag H&J specify should remain
-      the default now that TAQ carries nanoseconds. See #40. **Evidence found:**
-      their own Daily TAQ program of 16 March 2018 uses **one nanosecond**
-      (`time_m=time_m+.000000001`), not the millisecond the 2014 paper specifies.
-      So the authors moved with the data. This is now a decision to make, not a
-      question to answer: matching the paper and matching their current code are
-      no longer the same thing.
+- [x] **Whether the one-millisecond trade-to-quote lag should remain the
+      default now that TAQ carries nanoseconds.** See #40. Resolved: their own
+      Daily TAQ program of 16 March 2018 uses one nanosecond
+      (`time_m=time_m+.000000001`). PyTAQ follows their code as of 0.5.0, with
+      `HJ_PAPER_TRADE_QUOTE_LAG_NS` for the paper's millisecond.
 
-- [ ] **Whether `percent_method` should default to `log`.** Their 2018 DTAQ code
-      computes every percent measure as a log difference; their 2013 MTAQ code
-      divided the dollar measure by the reference midpoint, which is PyTAQ's
-      default. `percent_method="log"` reproduces the DTAQ code exactly, formula
-      for formula. Changing the default would match the authors' current
-      practice, at the cost of diverging from a large body of published work
-      using the ratio form. Needs a judgement call, and a note in the docs
-      either way.
+- [x] **Whether `percent_method` should default to `log`.** Resolved in 0.5.0:
+      it does. Their 2018 DTAQ code computes every percent measure as a log
+      difference, formula for formula what PyTAQ's log branch does; their 2013
+      MTAQ code divided the dollar measure by the reference midpoint, which is
+      now `percent_method="ratio"` and remains available for work built on it.
 
 - [ ] **The rewritten `compute_quote_inforce` on postgres.** It now derives a
       duration from the integer `timestamp_ns` key, which needs no date
@@ -105,9 +100,30 @@ trading day 2020-01-02, using AAPL (Nasdaq-listed) and A (NYSE-listed).
       functions only. Run the quoted-spread path against `taqmsec` once and
       confirm the numbers match a DuckDB run on the same materialised data.
 
-- [ ] **How much the three 0.4.0 corrections move the numbers on real data.**
-      All three are verified on fixtures, and the direction is understood, but
-      the size on a real symbol-day is not measured. Time-weighted quoted
-      spreads change for every symbol-day; effective and realized spreads change
-      only on trades near a quote update. Worth one before-and-after run on AAPL
-      for 2020-01-02 before anything is published from this.
+- [ ] **How much the 0.4.0 and 0.5.0 changes move the numbers on real data.**
+      All are verified on fixtures, and the direction of each is understood, but
+      the size on a real symbol-day is not measured. Time-weighted quoted spreads
+      change for every symbol-day (the `inforce` fix); every percent measure
+      changes (the log default); effective and realized spreads change on trades
+      matched to a quote between one nanosecond and one millisecond old (the lag
+      default) and on trades near a quote update (the nanosecond match). Worth one
+      before-and-after run on AAPL for 2020-01-02 before anything is published
+      from this.
+
+- [ ] **Whether the reconstructed complete NBBO now agrees more closely with
+      WRDS's own `complete_nbbo_*`.** The dedup key moved from the microsecond
+      timestamp to the nanosecond one in 0.5.0, which should account for part of
+      the roughly 1,800 excess quotes recorded above. Re-run the AAPL 2016-12-07
+      comparison and see what is left.
+
+- [ ] **Whether `clean_quote_table` should delete rows rather than neutralise
+      sides.** H&J's DTAQ Step 5 deletes a quote outright on an abnormal
+      condition, a crossed market, a spread over $5 or a withdrawn side, where
+      PyTAQ nulls the offending side and keeps the row. Their MTAQ code
+      neutralises, and PyTAQ's docstrings quote their reasoning for it, which is
+      sound for the NBBO file: deleting leaves the venue's previous quote standing.
+      The DTAQ quote file is used only to supply quotes that are *themselves* the
+      NBBO, where that argument does not obviously apply, and a half-null quote
+      entering the union blanks the NBBO at that instant where H&J would have let
+      the prior NBBO stand. Needs a judgement call, and a count of how many rows
+      it touches on a real day.

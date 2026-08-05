@@ -2,6 +2,8 @@ from typing import TYPE_CHECKING
 
 import ibis
 
+from .common import TIMESTAMP_NS_COL
+
 if TYPE_CHECKING:
     from ibis.expr.types import Table
 
@@ -27,19 +29,28 @@ def merge_quotes_nbbo(
     Args:
         nbbo (Table): Cleaned NBBO, from `clean_nbbo`
         quote (Table): Cleaned NBBO-eligible quotes, from `clean_quote_table`
-        keep_changes_only (bool): Keep one row per symbol and timestamp, the
-            one with the highest sequence number
+        keep_changes_only (bool): Keep one row per symbol and instant, the one
+            with the highest sequence number
 
     Returns:
         Table: The complete NBBO
     """
     t = nbbo.union(quote)
 
-    if not keep_changes_only:
-        return t.order_by(["symbol", "timestamp", "qu_seqnum"])
+    # The instant two quotes have to share before one supersedes the other.
+    # H&J dedup on `time_m`, which in DTAQ resolves to the nanosecond, so the
+    # nanosecond key is used wherever it is available. Deduping on the
+    # microsecond `timestamp` instead discards quotes that are genuinely distinct
+    # events: on AAPL for 2020-01-02, 2,655 NBBO rows share a microsecond with
+    # another row and nanoseconds separate every one of them.
+    instant = TIMESTAMP_NS_COL if TIMESTAMP_NS_COL in t.columns else "timestamp"
+    order = ["symbol", instant, "qu_seqnum"]
 
-    # Several venues can update within the same microsecond. The last of them,
-    # by sequence number, is the one in force.
+    if not keep_changes_only:
+        return t.order_by(order)
+
+    # Several venues can still update within the same nanosecond. The last of
+    # them, by sequence number, is the one in force.
     #
     # ibis.row_number() is ZERO-based, so the row to keep is 0, not 1. Filtering
     # on 1 kept the second-highest sequence number and dropped every timestamp
@@ -47,11 +58,7 @@ def merge_quotes_nbbo(
     # where 550,307 were correct.
     ranked = t.mutate(
         _rank=ibis.row_number().over(
-            group_by=["symbol", "timestamp"], order_by=ibis.desc("qu_seqnum")
+            group_by=["symbol", instant], order_by=ibis.desc("qu_seqnum")
         )
     )
-    return (
-        ranked.filter(ranked._rank == 0)
-        .drop("_rank")
-        .order_by(["symbol", "timestamp", "qu_seqnum"])
-    )
+    return ranked.filter(ranked._rank == 0).drop("_rank").order_by(order)

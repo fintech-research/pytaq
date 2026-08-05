@@ -43,19 +43,21 @@ A null flag means "not set". `qu_cancel` is null on essentially every real quote
 
 ## Matching trades to quotes
 
-Each trade is matched to the NBBO in force **one millisecond earlier**, as H&J specify for DTAQ. Without the lag, a quote stamped in the same instant as the trade counts as prevailing, and that quote may be a consequence of the trade rather than the state the trader faced.
+Each trade is matched to the NBBO in force **one nanosecond earlier**, as H&J's 2018 DTAQ code does. Without the lag, a quote stamped in the same instant as the trade counts as prevailing, and that quote may be a consequence of the trade rather than the state the trader faced. Their 2014 paper specifies one millisecond, which was TAQ's resolution then; pass `HJ_PAPER_TRADE_QUOTE_LAG_NS` to reproduce it.
 
 The comparison is at nanosecond precision. TAQ resolves events to the nanosecond via `time_m_nano`, and on a liquid symbol a few percent of trades share a microsecond with another.
 
 ```python
-merge_trades_official_nbbo(trades, nbbo, lag=datetime.timedelta(0))  # contemporaneous
+merge_trades_official_nbbo(trades, nbbo, lag=0)  # contemporaneous
 ```
+
+The lag is an integer count of nanoseconds. A `datetime.timedelta` is still accepted, but it cannot express one nanosecond: its finest unit is the microsecond.
 
 ## Percent measures
 
-The dollar measure divided by the reference midpoint, as H&J define it. Realized spread and price impact use the **future** midpoint, the one they are measured against.
+Twice the log difference, as H&J's 2018 DTAQ code computes every one of them. Realized spread and price impact take the log difference against the **future** midpoint, the one they are measured against.
 
-The log-difference form is available through `percent_method="log"` on every measure. The two agree to first order and diverge as spreads widen.
+The ratio form, the dollar measure divided by the reference midpoint, is available through `percent_method="ratio"` on every measure. That is what their 2013 monthly TAQ code did and what much of the published literature reports. The two agree to first order and diverge as spreads widen.
 
 ## Trade signing
 

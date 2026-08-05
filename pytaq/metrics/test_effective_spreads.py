@@ -174,22 +174,23 @@ def one_trade(con):
     return con.create_table("one_trade", data)
 
 
-def test_percent_effective_spread_defaults_to_the_hj_ratio(one_trade):
-    """H&J define the percent measure as the dollar measure over the midpoint."""
+def test_percent_effective_spread_defaults_to_the_hj_log_difference(one_trade):
+    """H&J's DTAQ code computes `abs(log(price) - log(midpoint)) * 2`."""
     result = compute_effective_spreads(one_trade).execute()
 
-    # 2*|100.5 - 100.0| = 1.0, and 1.0 / 100.0 = 0.01
-    assert result["effective_spread_dollar"].iloc[0] == pytest.approx(1.0)
-    assert result["effective_spread_percent"].iloc[0] == pytest.approx(0.01)
-
-
-def test_percent_effective_spread_log_convention_is_available(one_trade):
-    result = compute_effective_spreads(one_trade, percent_method="log").execute()
-
     expected = abs(math.log(100.5) - math.log(100.0)) * 2
+    assert result["effective_spread_dollar"].iloc[0] == pytest.approx(1.0)
     assert result["effective_spread_percent"].iloc[0] == pytest.approx(expected)
     # Close to the ratio form, but not equal to it.
     assert result["effective_spread_percent"].iloc[0] != pytest.approx(0.01, abs=1e-12)
+
+
+def test_percent_effective_spread_ratio_convention_is_available(one_trade):
+    """The 2013 MTAQ convention, and most of the published literature."""
+    result = compute_effective_spreads(one_trade, percent_method="ratio").execute()
+
+    # 2*|100.5 - 100.0| = 1.0, and 1.0 / 100.0 = 0.01
+    assert result["effective_spread_percent"].iloc[0] == pytest.approx(0.01)
 
 
 def test_dollar_effective_spread_does_not_depend_on_the_convention(one_trade):

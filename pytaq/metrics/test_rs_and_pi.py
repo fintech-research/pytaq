@@ -56,19 +56,10 @@ def test_percent_realized_spread_basic(con):
 
     import math
 
-    # Default is the Holden and Jacobsen ratio: the dollar measure over the
-    # future midpoint, sign * (price - midpoint_next) * 2 / midpoint_next.
-    ratio = table.mutate(
-        rs_percent=percent_realized_spread(table.sign, table.price, table.midpoint_next)
-    ).execute()
-    assert ratio["rs_percent"].iloc[0] == pytest.approx((101.0 - 100.0) * 2 / 100.0)
-    assert ratio["rs_percent"].iloc[1] == pytest.approx(-(99.0 - 100.0) * 2 / 100.0)
-
-    # The log convention remains available.
+    # Default is H&J's DTAQ convention, the log difference:
+    # sign * (log(price) - log(midpoint_next)) * 2.
     log = table.mutate(
-        rs_percent=percent_realized_spread(
-            table.sign, table.price, table.midpoint_next, percent_method="log"
-        )
+        rs_percent=percent_realized_spread(table.sign, table.price, table.midpoint_next)
     ).execute()
     assert log["rs_percent"].iloc[0] == pytest.approx(
         (math.log(101.0) - math.log(100.0)) * 2
@@ -76,6 +67,15 @@ def test_percent_realized_spread_basic(con):
     assert log["rs_percent"].iloc[1] == pytest.approx(
         -(math.log(99.0) - math.log(100.0)) * 2
     )
+
+    # The ratio convention, from their 2013 MTAQ code, remains available.
+    ratio = table.mutate(
+        rs_percent=percent_realized_spread(
+            table.sign, table.price, table.midpoint_next, percent_method="ratio"
+        )
+    ).execute()
+    assert ratio["rs_percent"].iloc[0] == pytest.approx((101.0 - 100.0) * 2 / 100.0)
+    assert ratio["rs_percent"].iloc[1] == pytest.approx(-(99.0 - 100.0) * 2 / 100.0)
 
 
 def test_dollar_price_impact_basic(con):
@@ -115,17 +115,9 @@ def test_percent_price_impact_basic(con):
 
     import math
 
-    # Default is the H&J ratio, divided by the future midpoint.
-    ratio = table.mutate(
-        pi_percent=percent_price_impact(table.sign, table.midpoint, table.midpoint_next)
-    ).execute()
-    assert ratio["pi_percent"].iloc[0] == pytest.approx((101.0 - 100.0) * 2 / 101.0)
-    assert ratio["pi_percent"].iloc[1] == pytest.approx(-(99.0 - 100.0) * 2 / 99.0)
-
+    # Default is H&J's DTAQ convention, the log difference.
     log = table.mutate(
-        pi_percent=percent_price_impact(
-            table.sign, table.midpoint, table.midpoint_next, percent_method="log"
-        )
+        pi_percent=percent_price_impact(table.sign, table.midpoint, table.midpoint_next)
     ).execute()
     assert log["pi_percent"].iloc[0] == pytest.approx(
         (math.log(101.0) - math.log(100.0)) * 2
@@ -133,6 +125,15 @@ def test_percent_price_impact_basic(con):
     assert log["pi_percent"].iloc[1] == pytest.approx(
         -(math.log(99.0) - math.log(100.0)) * 2
     )
+
+    # The ratio convention divides by the future midpoint.
+    ratio = table.mutate(
+        pi_percent=percent_price_impact(
+            table.sign, table.midpoint, table.midpoint_next, percent_method="ratio"
+        )
+    ).execute()
+    assert ratio["pi_percent"].iloc[0] == pytest.approx((101.0 - 100.0) * 2 / 101.0)
+    assert ratio["pi_percent"].iloc[1] == pytest.approx(-(99.0 - 100.0) * 2 / 99.0)
 
 
 def test_realized_spread_zero_sign(con):

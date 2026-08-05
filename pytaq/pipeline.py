@@ -27,7 +27,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from .cleaning.merge_trades_official_nbbo import (
-    HJ_TRADE_QUOTE_LAG,
+    HJ_TRADE_QUOTE_LAG_NS,
     merge_trades_official_nbbo,
 )
 from .cleaning.official_nbbo import clean_official_complete_nbbo
@@ -100,7 +100,7 @@ def process_day(
     raw_official_nbbo: "Table",
     date: datetime.date,
     *,
-    lag: datetime.timedelta = HJ_TRADE_QUOTE_LAG,
+    lag: datetime.timedelta | int = HJ_TRADE_QUOTE_LAG_NS,
     horizon: datetime.timedelta | None = datetime.timedelta(minutes=5),
     horizon_suffix: str = "5min",
     percent_method: PercentMethod = DEFAULT_PERCENT_METHOD,
@@ -126,8 +126,10 @@ def process_day(
         raw_official_nbbo (Table): Raw official complete NBBO for the date
         date (datetime.date): The trading date, used to place the closing
             timestamp for the last quote's time in force
-        lag (datetime.timedelta): How far before each trade the matched quote
-            must have been in force. One millisecond, following H&J
+        lag (datetime.timedelta | int): Nanoseconds before each trade at which
+            the matched quote must have been in force, or a timedelta. One
+            nanosecond by default, as in H&J's 2018 DTAQ code. Pass
+            `HJ_PAPER_TRADE_QUOTE_LAG_NS` for the millisecond the paper specifies
         horizon (datetime.timedelta | None): Horizon for realized spread and
             price impact, or None to skip them
         horizon_suffix (str): Names the horizon in the output columns

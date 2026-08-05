@@ -205,15 +205,16 @@ def test_quoted_spread_exclusions_are_optional(
 
 
 def test_the_lag_is_applied_at_nanosecond_precision(con):
-    """The quote 500ns past the lagged trade time must not be the match.
+    """One nanosecond of lag has to be able to separate two quotes.
 
-    The cleaned tables carry `timestamp_ns` so that the one-millisecond lag is
-    applied to the time TAQ recorded rather than to a microsecond-truncated
-    copy of it. Here the later quote is 500 nanoseconds after the lagged trade
-    time and shares a microsecond with it, so matching on `timestamp` alone
-    would take it and report a midpoint of 20.5 instead of 10.5.
+    The default lag is a single nanosecond, following H&J's 2018 DTAQ code, so
+    the quote stamped in the same nanosecond as the trade must be excluded and
+    the one a nanosecond earlier must win. That is only possible because the
+    cleaned tables carry `timestamp_ns`: on the microsecond `timestamp` both
+    quotes fall in the same microsecond as the trade, the lag floors to zero, and
+    the later quote would win with a midpoint of 20.5 instead of 10.5.
     """
-    # Trade at 09:30:00.002000000; lagged by 1ms that is 09:30:00.001000000.
+    # Trade at 09:30:00.002000000, so the lagged time is 09:30:00.001999999.
     trades = pd.DataFrame(
         {
             "DATE": [DATE],
@@ -229,10 +230,9 @@ def test_the_lag_is_applied_at_nanosecond_precision(con):
             "TR_CORR": pd.Series(["00"], dtype="string"),
         }
     )
-    # The second quote is 500ns after the lagged trade time, inside the same
-    # microsecond, so it was not yet standing.
-    nbbo = _raw_nbbo_frame([(34200.000, 10.0, 11.0), (34200.001, 20.0, 21.0)])
-    nbbo["TIME_M_NANO"] = [0, 500]
+    # One quote exactly on the lagged time, one in the trade's own nanosecond.
+    nbbo = _raw_nbbo_frame([(34200.001999, 10.0, 11.0), (34200.002, 20.0, 21.0)])
+    nbbo["TIME_M_NANO"] = [999, 0]
 
     day = process_day(
         con.create_table("ns_trades", trades),
@@ -268,6 +268,41 @@ def test_cleaners_produce_union_compatible_schemas(raw_official_nbbo, con):
     from .cleaning.quotes import QUOTES_COLS_CLEAN
 
     assert set(NBBO_COLS_CLEAN) == set(QUOTES_COLS_CLEAN)
+
+
+def test_dedup_separates_quotes_inside_one_microsecond(con):
+    """Two quotes 500ns apart are two NBBO states, not one.
+
+    H&J dedup the complete NBBO on `time_m`, which resolves to the nanosecond in
+    DTAQ. Deduping on the microsecond `timestamp` instead throws away the second
+    of any two quotes sharing a microsecond: on AAPL for 2020-01-02 that is 2,655
+    NBBO rows, every one of them separable in nanoseconds.
+    """
+    import pandas as pd
+
+    base = pd.Timestamp("2020-01-02 09:30:00")
+    data = pd.DataFrame(
+        {
+            "symbol": pd.Series(["A"] * 3, dtype="string"),
+            # The first two share a microsecond and differ by 500ns.
+            "timestamp": [base, base, base + pd.Timedelta("1us")],
+            "timestamp_ns": [base.value, base.value + 500, base.value + 1000],
+            "qu_seqnum": [1, 2, 3],
+            "best_bid": [99.0, 99.5, 99.7],
+            "best_ask": [101.0, 101.5, 101.7],
+            "best_bidsizeshares": [100, 200, 300],
+            "best_asksizeshares": [100, 200, 300],
+            "best_bidex": pd.Series(["N"] * 3, dtype="string"),
+            "best_askex": pd.Series(["N"] * 3, dtype="string"),
+        }
+    )
+    quotes = con.create_table("ns_dedup_quotes", data)
+    empty = quotes.filter(quotes.qu_seqnum < 0)
+
+    result = merge_quotes_nbbo(empty, quotes).execute()
+
+    assert len(result) == 3, "quotes separated by nanoseconds must all survive"
+    assert sorted(result["qu_seqnum"]) == [1, 2, 3]
 
 
 def test_dedup_keeps_the_highest_sequence_number(con):

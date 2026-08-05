@@ -1,19 +1,27 @@
 """How a percent liquidity measure is defined.
 
-Two conventions are in circulation:
-
-``"ratio"``
-    Divide the dollar measure by the reference midpoint, which is what
-    Holden and Jacobsen (2014) do and what most of the empirical literature
-    reports. This is the default.
+Two conventions are in circulation, and Holden and Jacobsen have published one
+of each:
 
 ``"log"``
-    Take twice the log difference. Convenient because it is additive across
-    periods and symmetric in direction, and used in parts of the literature.
+    Twice the log difference. This is what their **Daily TAQ** code of 16 March
+    2018 computes for every percent measure, so it is the default here, since
+    DTAQ is what PyTAQ targets::
 
-The two agree to first order and diverge as spreads widen, so the choice
-matters least where spreads are tightest. It is exposed rather than fixed
-because someone may have existing results built on either.
+        wQuotedSpread_Percent = (log(Best_Ask) - log(Best_Bid)) * inforce
+        wEffectiveSpread_Percent = abs(log(price) - log(midpoint)) * 2
+
+    It is also additive across periods and symmetric in direction.
+
+``"ratio"``
+    Divide the dollar measure by the reference midpoint. This is what their
+    earlier **monthly TAQ** code of September 2013 did, and what a large part of
+    the empirical literature reports.
+
+The two agree to first order and diverge as spreads widen, so the choice matters
+least where spreads are tightest. Both stay available because published results
+exist on either footing: pass ``percent_method="ratio"`` to reproduce work built
+on the older convention.
 """
 
 from typing import Literal, get_args
@@ -22,7 +30,7 @@ PercentMethod = Literal["ratio", "log"]
 
 PERCENT_METHODS: tuple[str, ...] = get_args(PercentMethod)
 
-DEFAULT_PERCENT_METHOD: PercentMethod = "ratio"
+DEFAULT_PERCENT_METHOD: PercentMethod = "log"
 
 
 def check_percent_method(method: str) -> None:
