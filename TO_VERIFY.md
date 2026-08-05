@@ -80,7 +80,21 @@ trading day 2020-01-02, using AAPL (Nasdaq-listed) and A (NYSE-listed).
       disagreements in the reconstruction above.
 
 - [ ] Whether the one-millisecond trade-to-quote lag H&J specify should remain
-      the default now that TAQ carries nanoseconds. See #40.
+      the default now that TAQ carries nanoseconds. See #40. **Evidence found:**
+      their own Daily TAQ program of 16 March 2018 uses **one nanosecond**
+      (`time_m=time_m+.000000001`), not the millisecond the 2014 paper specifies.
+      So the authors moved with the data. This is now a decision to make, not a
+      question to answer: matching the paper and matching their current code are
+      no longer the same thing.
+
+- [ ] **Whether `percent_method` should default to `log`.** Their 2018 DTAQ code
+      computes every percent measure as a log difference; their 2013 MTAQ code
+      divided the dollar measure by the reference midpoint, which is PyTAQ's
+      default. `percent_method="log"` reproduces the DTAQ code exactly, formula
+      for formula. Changing the default would match the authors' current
+      practice, at the cost of diverging from a large body of published work
+      using the ratio form. Needs a judgement call, and a note in the docs
+      either way.
 
 - [ ] **The rewritten `compute_quote_inforce` on postgres.** It now derives a
       duration from the integer `timestamp_ns` key, which needs no date
