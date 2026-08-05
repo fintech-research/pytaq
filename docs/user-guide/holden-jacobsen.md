@@ -2,7 +2,14 @@
 
 [Holden and Jacobsen (2014)](https://doi.org/10.1111/jofi.12127) is not a specification, but their cleaning procedure is the de facto default in empirical microstructure research. PyTAQ aims to reproduce it exactly by default, while making each choice visible and overridable.
 
-This page records where PyTAQ stands against their published SAS code (Internet Appendix, September 2013 version) and against the Daily TAQ Client Specification. It is maintained by hand; when you change a measure, change this table.
+This page records where PyTAQ stands against their published SAS code and against the Daily TAQ Client Specification. It is maintained by hand; when you change a measure, change this table.
+
+There are **two** published programs, and they do not agree with each other:
+
+- the **MTAQ** code of September 2013, printed at the end of the Internet Appendix, which reconstructs the NBBO from the consolidated quote file and uses Interpolated Time
+- the **DTAQ** code of 16 March 2018, distributed separately, which is the one to compare against here, since it targets the same data PyTAQ does
+
+Where the two differ, the DTAQ code wins for our purposes and the row below says so. Two of those differences are conventions PyTAQ does not currently default to, noted under percent measures and the trade-quote lag.
 
 Legend: **matches**, **differs** (tracked by an issue), **absent**.
 
@@ -28,7 +35,7 @@ These filters set the offending side to null rather than dropping the row, which
 
 | Step | Holden and Jacobsen | PyTAQ | Status |
 |---|---|---|---|
-| Quote timing, DTAQ | one millisecond lag | same by default, `lag` parameter | matches |
+| Quote timing, DTAQ | paper: one millisecond. **2018 code: one nanosecond** (`time_m=time_m+.000000001`) | one millisecond by default, `lag` parameter | matches the paper, not the current code |
 | Match direction | most recent prior quote | as-of join, backward, nanosecond precision | matches |
 | Trades with no prior quote | not applicable | kept, null quote columns | extension |
 
@@ -45,26 +52,37 @@ These filters set the offending side to null rather than dropping the row, which
 
 ## Liquidity measures
 
-Dollar measures agree throughout, with one exception noted under price impact. Percent measures follow H&J by default, dividing the dollar measure by the reference midpoint. The log-difference form remains available through `percent_method="log"` on each function; the two agree to first order and diverge as spreads widen.
+Dollar measures agree throughout.
+
+**Percent measures are the one place PyTAQ's default does not match the DTAQ code.** Their 2018 program computes every percent measure as a log difference:
+
+```sas
+wQuotedSpread_Percent   = (log(Best_Ask) - log(Best_Bid)) * inforce;
+wEffectiveSpread_Percent = abs(log(price) - log(midpoint)) * 2;
+wPercentRealizedSpread_LR = BuySellLR * (log(price) - log(midpoint5)) * 2;
+wPercentPriceImpact_LR    = BuySellLR * (log(midpoint5) - log(midpoint)) * 2;
+```
+
+Their 2013 MTAQ program divided the dollar measure by the reference midpoint instead. PyTAQ defaults to that ratio form, so `percent_method="log"` is what reproduces the DTAQ code, and each of the four formulas above matches PyTAQ's log branch exactly. The two conventions agree to first order and diverge as spreads widen. Whether the default should change is [an open question](https://github.com/fintech-research/pytaq/blob/main/TO_VERIFY.md), not an oversight, since a great deal of published work uses the ratio form.
 
 | Measure | Holden and Jacobsen | PyTAQ | Status |
 |---|---|---|---|
 | Dollar quoted spread | `ask - bid` | same | matches |
-| Percent quoted spread | `(ask - bid) / midpoint` | same by default | matches, `percent_method` |
+| Percent quoted spread | DTAQ: `log(ask) - log(bid)` | `percent_method="log"` | matches with `log`, not with the `ratio` default |
 | Dollar effective spread | `2·abs(P - M)` | same | matches |
-| Percent effective spread | `2·abs(P - M) / M` | same by default | matches, `percent_method` |
+| Percent effective spread | DTAQ: `2·abs(log P - log M)` | `percent_method="log"` | matches with `log` |
 | Dollar realized spread | `2·D·(P - M₅)` | same | matches |
-| Percent realized spread | `2·D·(P - M₅) / M₅` | same by default | matches, `percent_method` |
-| Dollar price impact | `ES$ - RS$`, with `ES$` **unsigned** | `2·D·(M₅ - M)` | differs when the sign disagrees with the trade's side of the midpoint, see below |
-| Percent price impact | `(ES$ - RS$) / M₅` | same by default | same caveat, `percent_method` |
+| Percent realized spread | DTAQ: `2·D·(log P - log M₅)` | `percent_method="log"` | matches with `log` |
+| Dollar price impact | DTAQ: `2·D·(M₅ - M)` | same | matches |
+| Percent price impact | DTAQ: `2·D·(log M₅ - log M)` | `percent_method="log"` | matches with `log` |
 | Realized spread horizon | 5 minutes | `delay` parameter, default 5 minutes | matches |
 | Denominator for RS and PI | the **future** midpoint `M₅` | `M₅` in the dollar form | matches |
 
 ### On price impact
 
-H&J compute price impact as `wDollarPriceImpact = wEffectiveSpread_Dollar - wDollarRealizedSpread`, where the effective spread is `2·|P - M|`, unsigned, and the realized spread is `2·D·(P - M₅)`, signed. PyTAQ computes `2·D·(M₅ - M)` directly.
+The 2018 DTAQ code computes `wDollarPriceImpact_LR = BuySellLR*(midpoint5-midpoint)*2`, which is PyTAQ's expression exactly. Nothing to reconcile.
 
-The two are identical whenever `D` agrees with the side of the midpoint the trade fell on, since then `|P - M| = D·(P - M)` and the terms telescope. Lee-Ready always agrees, because it assigns `D` from that comparison. EMO and CLNV need not: both fall back to the tick test for trades away from the quotes, and the tick test can return a sell for a trade above the midpoint. On those trades H&J's expression mixes an unsigned magnitude with a signed one, and the two definitions diverge; PyTAQ's is the textbook decomposition. Only the EMO and CLNV columns are affected, and only on trades the tick test decided.
+Their 2013 MTAQ code did something else: `wDollarPriceImpact = wEffectiveSpread_Dollar - wDollarRealizedSpread`, with the effective spread unsigned. That is identical to `2·D·(M₅ - M)` only when `D` agrees with the side of the midpoint the trade fell on, which Lee-Ready guarantees and EMO and CLNV do not, since both fall back to the tick test away from the quotes. So the two published programs disagree with each other on EMO and CLNV price impact, and PyTAQ follows the later one.
 
 ## Exclusions when computing measures
 
@@ -110,7 +128,8 @@ On the weighted averages: H&J sum the full weight column. Their aggregation read
 ## Sources
 
 - Holden, C. and S. Jacobsen (2014), "Liquidity Measurement Problems in Fast, Competitive Markets: Expensive and Cheap Solutions", *Journal of Finance* 69(4)
-- Internet Appendix to the above, including the September 2013 SAS implementation
+- Internet Appendix to the above, including the September 2013 MTAQ SAS implementation
+- **Holden and Jacobsen Daily TAQ Code, 16 March 2018**, the DTAQ program, which is the primary reference for this table
 - Daily TAQ Client Specification, 6 August 2013 edition
 
 
